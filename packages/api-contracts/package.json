@@ -1,0 +1,13 @@
+{
+  "name": "@usta-bul/api-contracts",
+  "version": "1.0.0",
+  "description": "Ortak API sözleşmeleri, DTO'lar ve tip tanımları",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
