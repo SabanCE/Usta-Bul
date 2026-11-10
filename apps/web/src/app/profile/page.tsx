@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
-import { getAuthHeaders, getAuthToken } from '../../utils/api';
+import { apiUrl, getAuthHeaders, getAuthToken } from '../../utils/api';
 import LocationPicker, { DEFAULT_RADIUS_KM } from '../../components/LocationPicker';
 
 const AVATAR_MAX_MB = 2;
@@ -63,7 +63,7 @@ export default function CustomerProfilePage() {
 
     const fetchProfile = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/v1/customers/profile/me', {
+        const res = await fetch(apiUrl('/api/v1/customers/profile/me'), {
           headers: getAuthHeaders(),
         });
 
@@ -167,7 +167,7 @@ export default function CustomerProfilePage() {
 
         const token = getAuthToken();
         const uploadRes = await fetch(
-          'http://localhost:5000/api/v1/customers/profile/me/avatar',
+          apiUrl('/api/v1/customers/profile/me/avatar'),
           {
             method: 'POST',
             headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -197,7 +197,7 @@ export default function CustomerProfilePage() {
       }
 
       // 2. Ad soyad ve telefon bilgilerini kaydet.
-      const res = await fetch('http://localhost:5000/api/v1/customers/profile/me', {
+      const res = await fetch(apiUrl('/api/v1/customers/profile/me'), {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({

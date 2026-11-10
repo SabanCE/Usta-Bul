@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { getAuthHeaders } from '../utils/api';
+import { apiUrl, getAuthHeaders } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
 type ReportTarget = 'user' | 'review' | 'bid' | 'request';
@@ -42,7 +42,7 @@ export default function ReportButton({
     setBusy(true);
     setMessage(null);
     try {
-      const response = await fetch('http://localhost:5000/api/v1/reports', {
+      const response = await fetch(apiUrl('/api/v1/reports'), {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ targetType, targetId, reason, description }),

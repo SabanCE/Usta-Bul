@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getAuthToken } from '../../../utils/api';
+import { apiUrl, getAuthToken } from '../../../utils/api';
 import LocationPicker, { DEFAULT_RADIUS_KM } from '../../../components/LocationPicker';
 
 export default function NewRequestPage({
@@ -115,7 +115,7 @@ export default function NewRequestPage({
       formData.append('request', JSON.stringify(payload));
       imagesList.forEach(({ file }) => formData.append('images', file));
       const token = getAuthToken();
-      const res = await fetch('http://localhost:5000/api/v1/requests', {
+      const res = await fetch(apiUrl('/api/v1/requests'), {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,

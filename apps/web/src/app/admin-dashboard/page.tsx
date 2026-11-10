@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import { formatCityDistrict } from '../../utils/location';
-import { getAuthHeaders } from '../../utils/api';
+import { apiUrl, getAuthHeaders } from '../../utils/api';
 
 interface PendingArtisan {
   id: string;
@@ -133,8 +133,8 @@ export default function AdminDashboardPage() {
     setError('');
     try {
       const [pendingResponse, statsResponse] = await Promise.all([
-        fetch('http://localhost:5000/api/v1/admin/artisans/pending', { headers: getAuthHeaders() }),
-        fetch('http://localhost:5000/api/v1/admin/stats', { headers: getAuthHeaders() }),
+        fetch(apiUrl('/api/v1/admin/artisans/pending'), { headers: getAuthHeaders() }),
+        fetch(apiUrl('/api/v1/admin/stats'), { headers: getAuthHeaders() }),
       ]);
       const [pendingData, statsData] = await Promise.all([
         pendingResponse.json().catch(() => null),
@@ -164,7 +164,7 @@ export default function AdminDashboardPage() {
     try {
       const query = params.toString();
       const response = await fetch(
-        `http://localhost:5000/api/v1/admin/${config.endpoint}${query ? `?${query}` : ''}`,
+        apiUrl(`/api/v1/admin/${config.endpoint}${query ? `?${query}` : ''}`),
         { headers: getAuthHeaders(), cache: 'no-store' }
       );
       const data = await response.json().catch(() => null);
@@ -185,7 +185,7 @@ export default function AdminDashboardPage() {
     if (userSearch.trim()) params.set('q', userSearch.trim());
     if (userRole) params.set('role', userRole);
     try {
-      const response = await fetch(`http://localhost:5000/api/v1/admin/users?${params}`, {
+      const response = await fetch(apiUrl(`/api/v1/admin/users?${params}`), {
         headers: getAuthHeaders(),
         cache: 'no-store',
       });
@@ -206,7 +206,7 @@ export default function AdminDashboardPage() {
     setProfileLoading(true);
     setError('');
     try {
-      const response = await fetch(`http://localhost:5000/api/v1/admin/users/${id}`, {
+      const response = await fetch(apiUrl(`/api/v1/admin/users/${id}`), {
         headers: getAuthHeaders(),
         cache: 'no-store',
       });
@@ -233,7 +233,7 @@ export default function AdminDashboardPage() {
     setError('');
     setNotice('');
     try {
-      const response = await fetch(`http://localhost:5000/api/v1/admin/users/${user.id}/status`, {
+      const response = await fetch(apiUrl(`/api/v1/admin/users/${user.id}/status`), {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({ status, reason: accountReason.trim() }),
@@ -277,7 +277,7 @@ export default function AdminDashboardPage() {
     setError('');
     setNotice('');
     try {
-      const response = await fetch(`http://localhost:5000/api/v1/admin/${endpoint}`, {
+      const response = await fetch(apiUrl(`/api/v1/admin/${endpoint}`), {
         method,
         headers: getAuthHeaders(),
         body: JSON.stringify(body),
@@ -299,7 +299,7 @@ export default function AdminDashboardPage() {
     setActionId(id);
     setError('');
     try {
-      const response = await fetch(`http://localhost:5000/api/v1/admin/artisans/${id}/approval`, {
+      const response = await fetch(apiUrl(`/api/v1/admin/artisans/${id}/approval`), {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({ isApproved }),
@@ -323,7 +323,7 @@ export default function AdminDashboardPage() {
   const openTicket = async (item: QueueItem) => {
     setError('');
     try {
-      const response = await fetch(`http://localhost:5000/api/v1/admin/support/${item.id}`, {
+      const response = await fetch(apiUrl(`/api/v1/admin/support/${item.id}`), {
         headers: getAuthHeaders(),
       });
       const data = await response.json().catch(() => null);

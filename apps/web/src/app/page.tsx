@@ -6,7 +6,7 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import { DEFAULT_RADIUS_KM, RADIUS_OPTIONS } from '../components/LocationPicker';
 import { formatCityDistrict, formatDistanceKm } from '../utils/location';
 import { useAuth } from '../context/AuthContext';
-import { getAuthHeaders } from '../utils/api';
+import { apiUrl, getAuthHeaders } from '../utils/api';
 import DiscoveryMap, { DiscoveryPoint } from '../components/DiscoveryMap';
 
 interface Artisan {
@@ -70,7 +70,7 @@ export default function HomePage() {
     const loadCustomerLocation = async () => {
       if (user?.role === 'customer') {
         try {
-          const response = await fetch('http://localhost:5000/api/v1/customers/profile/me', {
+          const response = await fetch(apiUrl('/api/v1/customers/profile/me'), {
             headers: getAuthHeaders(),
             cache: 'no-store',
           });
@@ -127,8 +127,8 @@ export default function HomePage() {
         params.append('radius', radiusKm.toString());
       }
 
-      const apiUrl = `http://localhost:5000/api/v1/artisans?${params.toString()}`;
-      const res = await fetch(apiUrl, { cache: 'no-store' });
+      const endpoint = apiUrl(`/api/v1/artisans?${params.toString()}`);
+      const res = await fetch(endpoint, { cache: 'no-store' });
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {

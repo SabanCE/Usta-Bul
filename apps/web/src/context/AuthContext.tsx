@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { apiUrl } from '../utils/api';
 
 export type UserRole = 'customer' | 'artisan' | 'admin';
 
@@ -99,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = async (email: string, pass: string): Promise<boolean> => {
-    const res = await fetch('http://localhost:5000/api/v1/auth/login', {
+    const res = await fetch(apiUrl('/api/v1/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password: pass }),

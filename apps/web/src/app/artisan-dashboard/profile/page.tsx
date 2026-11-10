@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../context/AuthContext';
 import LocationPicker, { DEFAULT_RADIUS_KM } from '../../../components/LocationPicker';
-import { getAuthHeaders, getAuthToken } from '../../../utils/api';
+import { apiUrl, getAuthHeaders, getAuthToken } from '../../../utils/api';
 
 const AVATAR_MAX_MB = 2;
 const AVATAR_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif';
@@ -64,7 +64,7 @@ export default function EditArtisanProfilePage() {
   // Profil ve Hizmetleri Çek
   const fetchProfile = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/v1/artisans/profile/me', {
+      const res = await fetch(apiUrl('/api/v1/artisans/profile/me'), {
         cache: 'no-store',
         headers: getAuthHeaders(),
       });
@@ -181,7 +181,7 @@ export default function EditArtisanProfilePage() {
 
         const token = getAuthToken();
         const uploadRes = await fetch(
-          'http://localhost:5000/api/v1/artisans/profile/me/avatar',
+          apiUrl('/api/v1/artisans/profile/me/avatar'),
           {
             method: 'POST',
             headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -225,7 +225,7 @@ export default function EditArtisanProfilePage() {
         isAvailable,
       };
 
-      const res = await fetch('http://localhost:5000/api/v1/artisans/profile/me', {
+      const res = await fetch(apiUrl('/api/v1/artisans/profile/me'), {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(payload),
@@ -253,7 +253,7 @@ export default function EditArtisanProfilePage() {
     setStatusMsg(null);
 
     try {
-      const res = await fetch('http://localhost:5000/api/v1/artisans/services', {
+      const res = await fetch(apiUrl('/api/v1/artisans/services'), {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -287,7 +287,7 @@ export default function EditArtisanProfilePage() {
   const handleDeleteService = async (serviceId: string) => {
     setStatusMsg(null);
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/artisans/services/${serviceId}`, {
+      const res = await fetch(apiUrl(`/api/v1/artisans/services/${serviceId}`), {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });

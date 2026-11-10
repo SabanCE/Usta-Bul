@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth, UserRole } from '../context/AuthContext';
-import { getAuthHeaders } from '../utils/api';
+import { apiUrl, getAuthHeaders } from '../utils/api';
 
 interface NotificationItem {
   id: string;
@@ -38,7 +38,7 @@ const roleLabels: Record<UserRole, string> = {
 const markNotificationsRead = async (ids: string[]): Promise<boolean> => {
   if (ids.length === 0) return true;
   try {
-    const response = await fetch('http://localhost:5000/api/v1/notifications/read', {
+    const response = await fetch(apiUrl('/api/v1/notifications/read'), {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ ids }),
@@ -79,7 +79,7 @@ export default function Navbar() {
     const fetchNotifications = async () => {
       const currentRequestId = ++requestId;
       try {
-        const res = await fetch('http://localhost:5000/api/v1/notifications', {
+        const res = await fetch(apiUrl('/api/v1/notifications'), {
           headers: getAuthHeaders(),
         });
         if (!res.ok) {

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, UserRole } from '../../context/AuthContext';
 import LocationPicker, { DEFAULT_RADIUS_KM } from '../../components/LocationPicker';
+import { apiUrl } from '../../utils/api';
 
 function RegisterForm() {
   const router = useRouter();
@@ -36,7 +37,7 @@ function RegisterForm() {
         throw new Error('Devam etmek için konum pininizi seçip il ve ilçe bilgilerini girin.');
       }
 
-      const res = await fetch('http://localhost:5000/api/v1/auth/register', {
+      const res = await fetch(apiUrl('/api/v1/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

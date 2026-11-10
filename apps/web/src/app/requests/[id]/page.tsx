@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getAuthHeaders } from '../../../utils/api';
+import { apiUrl, getAuthHeaders } from '../../../utils/api';
 import { formatCityDistrict, formatLocation } from '../../../utils/location';
 import LocationMap from '../../../components/LocationMap';
 import DrivingTimeBadge from '../../../components/DrivingTimeBadge';
@@ -80,7 +80,7 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
     setLoading(true);
     setErrorMsg('');
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/requests/${params.id}`, {
+      const res = await fetch(apiUrl(`/api/v1/requests/${params.id}`), {
         headers: getAuthHeaders(),
       });
       const data = await res.json().catch(() => null);
@@ -121,7 +121,7 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
     setErrorMsg('');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/requests/${params.id}/bids/${bidId}/accept`, {
+      const res = await fetch(apiUrl(`/api/v1/requests/${params.id}/bids/${bidId}/accept`), {
         method: 'POST',
         headers: getAuthHeaders(),
       });
@@ -170,7 +170,7 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
 
     try {
       const res = await fetch(
-        `http://localhost:5000/api/v1/requests/${params.id}/bids/${bidId}/reject`,
+        apiUrl(`/api/v1/requests/${params.id}/bids/${bidId}/reject`),
         {
           method: 'POST',
           headers: getAuthHeaders(),
@@ -204,7 +204,7 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
     setErrorMsg('');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/requests/${params.id}/status`, {
+      const res = await fetch(apiUrl(`/api/v1/requests/${params.id}/status`), {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({ status: 'completed' }),
@@ -244,7 +244,7 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
     setReviewError('');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/artisans/${artisanId}/reviews`, {
+      const res = await fetch(apiUrl(`/api/v1/artisans/${artisanId}/reviews`), {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({

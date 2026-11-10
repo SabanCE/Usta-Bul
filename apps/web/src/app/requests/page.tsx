@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getAuthHeaders } from '../../utils/api';
+import { apiUrl, getAuthHeaders } from '../../utils/api';
 import { formatLocation } from '../../utils/location';
 
 interface JobRequest {
@@ -42,7 +42,7 @@ export default function RequestsPage() {
       setLoading(true);
       setErrorMsg('');
       try {
-        const res = await fetch('http://localhost:5000/api/v1/requests', {
+        const res = await fetch(apiUrl('/api/v1/requests'), {
           headers: getAuthHeaders(),
         });
         const data = await res.json().catch(() => null);

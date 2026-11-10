@@ -10,7 +10,7 @@ import {
   googleMapsPlaceUrl,
   haversineDistanceKm,
 } from '../../utils/location';
-import { getAuthHeaders } from '../../utils/api';
+import { apiUrl, getAuthHeaders } from '../../utils/api';
 import RouteMapDemo from '../../components/RouteMapDemo';
 import DiscoveryMap, { DiscoveryPoint } from '../../components/DiscoveryMap';
 
@@ -109,18 +109,18 @@ export default function ArtisanDashboardPage() {
 
     try {
       // 1. Profil Bilgisi
-      const profilePromise = fetch('http://localhost:5000/api/v1/artisans/profile/me', {
+      const profilePromise = fetch(apiUrl('/api/v1/artisans/profile/me'), {
         cache: 'no-store',
         headers: getAuthHeaders(),
       }).then(async (r) => ({ ok: r.ok, body: await r.json().catch(() => null) }));
 
       // 2. Açık İş Fırsatları
-      const requestsPromise = fetch('http://localhost:5000/api/v1/requests', {
+      const requestsPromise = fetch(apiUrl('/api/v1/requests'), {
         headers: getAuthHeaders(),
       }).then(async (r) => ({ ok: r.ok, body: await r.json().catch(() => null) }));
 
       // 3. Verdiği Teklifler
-      const bidsPromise = fetch('http://localhost:5000/api/v1/requests/artisan/my-bids', {
+      const bidsPromise = fetch(apiUrl('/api/v1/requests/artisan/my-bids'), {
         headers: getAuthHeaders(),
       }).then(async (r) => ({ ok: r.ok, body: await r.json().catch(() => null) }));
 
@@ -173,7 +173,7 @@ export default function ArtisanDashboardPage() {
     setSubmittingBid(true);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/requests/${requestId}/bids`, {
+      const res = await fetch(apiUrl(`/api/v1/requests/${requestId}/bids`), {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -209,7 +209,7 @@ export default function ArtisanDashboardPage() {
     const newStatus = !(artisanProfile?.is_available ?? true);
 
     try {
-      const res = await fetch('http://localhost:5000/api/v1/artisans/profile/me', {
+      const res = await fetch(apiUrl('/api/v1/artisans/profile/me'), {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ isAvailable: newStatus }),
@@ -351,7 +351,7 @@ export default function ArtisanDashboardPage() {
 
     try {
       const res = await fetch(
-        `http://localhost:5000/api/v1/requests/${bid.request_id}/bids/${bid.id}`,
+        apiUrl(`/api/v1/requests/${bid.request_id}/bids/${bid.id}`),
         {
           method: 'DELETE',
           headers: getAuthHeaders(),
@@ -390,7 +390,7 @@ export default function ArtisanDashboardPage() {
 
     try {
       const res = await fetch(
-        `http://localhost:5000/api/v1/requests/${bid.request_id}/status`,
+        apiUrl(`/api/v1/requests/${bid.request_id}/status`),
         {
           method: 'PATCH',
           headers: getAuthHeaders(),

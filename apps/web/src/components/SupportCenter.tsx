@@ -1,7 +1,7 @@
 'use client';
 
 import React, { FormEvent, useCallback, useEffect, useState } from 'react';
-import { getAuthHeaders } from '../utils/api';
+import { apiUrl, getAuthHeaders } from '../utils/api';
 
 interface Ticket {
   id: string;
@@ -70,11 +70,11 @@ export default function SupportCenter() {
     setError('');
     try {
       const [ticketResponse, reportResponse] = await Promise.all([
-        fetch('http://localhost:5000/api/v1/support', {
+        fetch(apiUrl('/api/v1/support'), {
           headers: getAuthHeaders(),
           cache: 'no-store',
         }),
-        fetch('http://localhost:5000/api/v1/reports/me', {
+        fetch(apiUrl('/api/v1/reports/me'), {
           headers: getAuthHeaders(),
           cache: 'no-store',
         }),
@@ -101,7 +101,7 @@ export default function SupportCenter() {
   const openTicket = async (ticket: Ticket) => {
     setError('');
     try {
-      const response = await fetch(`http://localhost:5000/api/v1/support/${ticket.id}`, {
+      const response = await fetch(apiUrl(`/api/v1/support/${ticket.id}`), {
         headers: getAuthHeaders(),
       });
       const data = await response.json().catch(() => null);
@@ -118,7 +118,7 @@ export default function SupportCenter() {
     setError('');
     setNotice('');
     try {
-      const response = await fetch('http://localhost:5000/api/v1/support', {
+      const response = await fetch(apiUrl('/api/v1/support'), {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ subject, message }),
@@ -144,7 +144,7 @@ export default function SupportCenter() {
     setError('');
     setNotice('');
     try {
-      const response = await fetch(`http://localhost:5000/api/v1/support/${selected.id}/messages`, {
+      const response = await fetch(apiUrl(`/api/v1/support/${selected.id}/messages`), {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ message: reply }),

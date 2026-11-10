@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { formatCityDistrict } from '../../../utils/location';
 import { useAuth } from '../../../context/AuthContext';
-import { getAuthHeaders } from '../../../utils/api';
+import { apiUrl, getAuthHeaders } from '../../../utils/api';
 import ReportButton from '../../../components/ReportButton';
 
 interface ArtisanService {
@@ -88,7 +88,7 @@ export default function ArtisanProfilePage({ params }: { params: { id: string } 
       setLoading(true);
       setErrorMsg('');
       try {
-        const res = await fetch(`http://localhost:5000/api/v1/artisans/${params.id}`, {
+        const res = await fetch(apiUrl(`/api/v1/artisans/${params.id}`), {
           cache: 'no-store',
           headers: getAuthHeaders(),
         });
