@@ -3,7 +3,7 @@ const apiOrigin =
   configuredApiUrl ||
   (process.env.NODE_ENV === 'development'
     ? 'http://localhost:5000'
-    : 'https://usta-bul.onrender.com');
+    : 'https://usta-bul-1.onrender.com');
 
 export function apiUrl(path: string): string {
   if (!apiOrigin) {
