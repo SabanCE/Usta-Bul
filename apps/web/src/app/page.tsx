@@ -8,6 +8,7 @@ import { formatCityDistrict, formatDistanceKm } from '../utils/location';
 import { useAuth } from '../context/AuthContext';
 import { apiUrl, getAuthHeaders } from '../utils/api';
 import DiscoveryMap, { DiscoveryPoint } from '../components/DiscoveryMap';
+import DraggableMapPanel from '../components/DraggableMapPanel';
 
 interface Artisan {
   id: string;
@@ -221,7 +222,7 @@ export default function HomePage() {
         onSelect={handleSelectArtisan}
         focusRequest={focusRequest}
       />
-      <aside className="rota-panel">
+      <DraggableMapPanel className="rota-panel" ariaLabel="Usta arama">
         <form className="rota-search" onSubmit={(event) => { event.preventDefault(); void fetchArtisans(); }}>
           <label className="rota-searchbox">
             <span aria-hidden="true">⌕</span>
@@ -310,7 +311,7 @@ export default function HomePage() {
           <span><i className="rota-legend-dot" /> Haritada konumu görünen ustalar</span>
           <Link href="/requests/new">Talep oluştur <span>↗</span></Link>
         </div>
-      </aside>
+      </DraggableMapPanel>
       <div className="rota-map-hint"><span className="rota-user-legend" />{userLocation ? `Arama merkezi · ${radiusKm} km` : 'İşaret seçerek ustaları keşfedin'}</div>
     </div>
   );

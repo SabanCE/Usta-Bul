@@ -97,6 +97,12 @@ export default function DiscoveryMap({
     const markers = markersRef.current;
     if (!mapReady || !map || !markers) return;
 
+    const getMobilePanelHeight = () => {
+      const panel = elementRef.current?.parentElement?.querySelector<HTMLElement>('.rota-panel');
+      return panel?.getBoundingClientRect().height
+        ?? Math.min(window.innerHeight * 0.36, window.innerHeight - 204, 640);
+    };
+
     void import('leaflet').then((leafletModule) => {
       const L = (leafletModule.default ?? leafletModule) as typeof import('leaflet');
       markers.clearLayers();
@@ -153,9 +159,7 @@ export default function DiscoveryMap({
         fittedBoundsKeyRef.current = boundsKey;
         const isMobile = window.matchMedia('(max-width: 700px)').matches;
         const mapHeight = map.getSize().y;
-        const panelHeight = isMobile
-          ? Math.min(window.innerHeight * 0.76, window.innerHeight - 204, 640)
-          : 0;
+        const panelHeight = isMobile ? getMobilePanelHeight() : 0;
         const desktopPanelWidth = window.innerWidth >= 901
           ? Math.min(700, Math.max(460, window.innerWidth * 0.42))
           : window.innerWidth > 700 ? 446 : 0;
@@ -191,9 +195,7 @@ export default function DiscoveryMap({
         if (selectedPoint) {
           const isMobile = window.matchMedia('(max-width: 700px)').matches;
           const mapHeight = map.getSize().y;
-          const panelHeight = isMobile
-            ? Math.min(window.innerHeight * 0.76, window.innerHeight - 204, 640)
-            : 0;
+          const panelHeight = isMobile ? getMobilePanelHeight() : 0;
           const visibleMapHeight = Math.max(112, mapHeight - panelHeight);
           const horizontalPanelWidth = window.innerWidth >= 901
             ? Math.min(700, Math.max(460, window.innerWidth * 0.42))

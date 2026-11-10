@@ -62,8 +62,10 @@ export default function Navbar() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const notifRef = useRef<HTMLDivElement>(null);
+  const showNotificationsRef = useRef(showNotifications);
   const locallyReadIds = useRef(new Set<string>());
   const pendingReadIds = useRef(new Set<string>());
+  showNotificationsRef.current = showNotifications;
 
   useEffect(() => {
     if (!user) {
@@ -76,7 +78,10 @@ export default function Navbar() {
 
     let active = true;
     let requestId = 0;
+    let isFetching = false;
     const fetchNotifications = async () => {
+      if (!active || isFetching || document.visibilityState !== 'visible') return;
+      isFetching = true;
       const currentRequestId = ++requestId;
       try {
         const res = await fetch(apiUrl('/api/v1/notifications'), {
@@ -98,7 +103,7 @@ export default function Navbar() {
           setNotifications(items);
           setUnreadCount(items.filter((item) => !item.isRead).length);
 
-          if (showNotifications) {
+          if (showNotificationsRef.current) {
             const unseenIds = items.filter((item) => !item.isRead).map((item) => item.id);
             if (unseenIds.length > 0) {
               unseenIds.forEach((id) => pendingReadIds.current.add(id));
@@ -121,16 +126,23 @@ export default function Navbar() {
         if (active) {
           console.error('[Notifications] Bildirimler alınamadı:', error);
         }
+      } finally {
+        isFetching = false;
       }
     };
 
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 15000);
+    const interval = setInterval(fetchNotifications, 60000);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') fetchNotifications();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       active = false;
       clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [user, showNotifications]);
+  }, [user]);
 
   const markVisibleNotificationsRead = async (items: NotificationItem[]) => {
     const unseenIds = items.filter((item) => !item.isRead).map((item) => item.id);

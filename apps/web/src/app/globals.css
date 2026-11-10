@@ -88,6 +88,10 @@
   box-shadow: 0 18px 56px rgba(23, 43, 58, 0.19);
 }
 
+.rota-panel-drag-handle {
+  display: none;
+}
+
 .rota-panel-head {
   padding: 22px 23px 16px;
   background: var(--rota-ink);
@@ -996,11 +1000,29 @@
     bottom: 0;
     left: 0;
     width: 100%;
-    height: min(76dvh, calc(100dvh - 204px), 640px);
-    min-height: 300px;
+    height: min(36dvh, calc(100dvh - 204px), 640px);
+    min-height: 220px;
     border: 0;
     border-radius: 20px 20px 0 0;
     box-shadow: 0 -12px 40px rgba(23, 43, 58, 0.17);
+  }
+
+  .rota-panel-drag-handle {
+    display: grid;
+    min-height: 22px;
+    flex: 0 0 22px;
+    place-items: center;
+    background: var(--rota-paper);
+    cursor: ns-resize;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .rota-panel-drag-handle span {
+    width: 36px;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(23, 43, 58, 0.25);
   }
 
   .rota-panel-head {
@@ -1078,7 +1100,7 @@
 
   .rota-map-hint {
     right: 12px;
-    bottom: calc(min(76dvh, calc(100dvh - 204px), 640px) + 10px);
+    bottom: calc(max(220px, min(36dvh, calc(100dvh - 204px), 640px)) + 10px);
     left: auto;
     padding: 7px 10px;
     font-size: 0.63rem;

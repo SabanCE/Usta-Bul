@@ -1,0 +1,40 @@
+# Exported from Render on 2026-11-10T17:45:13Z
+version: "1"
+projects:
+- name: My project
+  environments:
+  - name: Production
+    services:
+    - type: web
+      name: Usta-Bul
+      runtime: node
+      repo: https://github.com/SabanCE/Usta-Bul
+      plan: free
+      envVars:
+      - key: DB_NAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: NODE_ENV
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_REFRESH_EXPIRES_IN
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_ACCESS_EXPIRES_IN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      region: oregon
+      buildCommand: npm ci --prefix apps/api --include=dev && npm --prefix apps/api
+        run build
+      startCommand: npm --prefix apps/api start
+      autoDeployTrigger: commit

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { jobService } from '../services/job.service';
+import { artisanService } from '../services/artisan.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { authenticate, authorize } from '../middlewares/auth';
 import { BadRequestError } from '../errors/AppError';
@@ -10,6 +11,48 @@ import {
 } from '../utils/requestImageUpload';
 
 const router = Router();
+
+/**
+ * @openapi
+ * /api/v1/requests/artisan/dashboard:
+ *   get:
+ *     summary: Usta paneli verilerini tek istekte getir
+ *     tags:
+ *       - Talepler & Teklifler
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profil, uygun işler ve teklifler
+ */
+router.get(
+  '/artisan/dashboard',
+  authenticate,
+  authorize('artisan'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const artisanId = req.user!.id;
+    const [profileResult, opportunitiesResult, bidsResult] = await Promise.allSettled([
+      artisanService.getArtisanDetail(artisanId, true),
+      jobService.getRequests({ targetArtisanId: artisanId }),
+      jobService.getArtisanBids(artisanId),
+    ]);
+
+    if (opportunitiesResult.status === 'rejected') throw opportunitiesResult.reason;
+
+    res.json({
+      success: true,
+      data: {
+        profile: profileResult.status === 'fulfilled' ? profileResult.value : null,
+        opportunities: opportunitiesResult.value,
+        bids: bidsResult.status === 'fulfilled' ? bidsResult.value : [],
+        errors: {
+          profile: profileResult.status === 'rejected' ? 'Usta profiliniz yüklenemedi.' : null,
+          bids: bidsResult.status === 'rejected' ? 'Teklifleriniz yüklenemedi.' : null,
+        },
+      },
+    });
+  })
+);
 
 /**
  * @openapi

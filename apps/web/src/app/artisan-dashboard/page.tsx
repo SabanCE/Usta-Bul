@@ -13,6 +13,7 @@ import {
 import { apiUrl, getAuthHeaders } from '../../utils/api';
 import RouteMapDemo from '../../components/RouteMapDemo';
 import DiscoveryMap, { DiscoveryPoint } from '../../components/DiscoveryMap';
+import DraggableMapPanel from '../../components/DraggableMapPanel';
 
 interface Opportunity {
   id: string;
@@ -108,44 +109,21 @@ export default function ArtisanDashboardPage() {
     setErrorMsg('');
 
     try {
-      // 1. Profil Bilgisi
-      const profilePromise = fetch(apiUrl('/api/v1/artisans/profile/me'), {
+      const response = await fetch(apiUrl('/api/v1/requests/artisan/dashboard'), {
         cache: 'no-store',
         headers: getAuthHeaders(),
-      }).then(async (r) => ({ ok: r.ok, body: await r.json().catch(() => null) }));
-
-      // 2. Açık İş Fırsatları
-      const requestsPromise = fetch(apiUrl('/api/v1/requests'), {
-        headers: getAuthHeaders(),
-      }).then(async (r) => ({ ok: r.ok, body: await r.json().catch(() => null) }));
-
-      // 3. Verdiği Teklifler
-      const bidsPromise = fetch(apiUrl('/api/v1/requests/artisan/my-bids'), {
-        headers: getAuthHeaders(),
-      }).then(async (r) => ({ ok: r.ok, body: await r.json().catch(() => null) }));
-
-      const [profileRes, requestsRes, bidsRes] = await Promise.all([
-        profilePromise,
-        requestsPromise,
-        bidsPromise,
-      ]);
-
-      if (!requestsRes.ok) {
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
         throw new Error(
-          requestsRes.body?.error?.message || 'İş fırsatları sunucudan alınamadı. Lütfen tekrar deneyin.'
+          body?.error?.message || 'Usta paneli verileri sunucudan alınamadı. Lütfen tekrar deneyin.'
         );
       }
 
-      setArtisanProfile(profileRes.ok ? profileRes.body?.data ?? null : null);
-      setOpportunities(
-        requestsRes.ok && Array.isArray(requestsRes.body?.data) ? requestsRes.body.data : []
-      );
-      setMyBids(bidsRes.ok && Array.isArray(bidsRes.body?.data) ? bidsRes.body.data : []);
-      if (!profileRes.ok) {
-        setErrorMsg(profileRes.body?.error?.message || 'Usta profiliniz yüklenemedi.');
-      } else if (!bidsRes.ok) {
-        setErrorMsg(bidsRes.body?.error?.message || 'Teklifleriniz yüklenemedi.');
-      }
+      setArtisanProfile(body?.data?.profile ?? null);
+      setOpportunities(Array.isArray(body?.data?.opportunities) ? body.data.opportunities : []);
+      setMyBids(Array.isArray(body?.data?.bids) ? body.data.bids : []);
+      setErrorMsg(body?.data?.errors?.profile || body?.data?.errors?.bids || '');
     } catch (err: any) {
       setErrorMsg(err?.message || 'Usta paneli verileri yüklenemedi.');
       setOpportunities([]);
@@ -520,7 +498,7 @@ export default function ArtisanDashboardPage() {
           onSelect={focusMapOpportunity}
           focusRequest={mapFocusRequest}
         />
-        <aside className="rota-panel rota-artisan-panel">
+        <DraggableMapPanel className="rota-panel rota-artisan-panel" ariaLabel="İş fırsatları">
           <div className="rota-panel-head">
             <div className="rota-brandline"><span className="rota-brandmark">U</span><span>USTA BUL <i>·</i> İŞ ROTASI</span></div>
             <p className="eyebrow">USTA PANELİ · {isAvailable ? 'MÜSAİT' : 'MEŞGUL'}</p>
@@ -621,7 +599,7 @@ export default function ArtisanDashboardPage() {
             })}
           </div>
           <div className="rota-panel-foot"><span><i className="rota-legend-dot rota-legend-job" /> Uzmanlık ve hizmet alanınıza göre eşleşen işler</span><button type="button" onClick={() => setActiveTab('my_bids')}>Tekliflerim ({activeBids.length})</button></div>
-        </aside>
+        </DraggableMapPanel>
         <div className="rota-map-hint"><span className="rota-user-legend rota-user-legend-artisan" />{artisanCenter ? `Hizmet merkeziniz · ${currentRadius || 25} km` : 'İşaret seçerek işleri inceleyin'}</div>
         <div className="rota-floating-tabs">
           <button type="button" className="rota-tab-active" onClick={() => setActiveTab('opportunities')}>İş fırsatları <b>{opportunities.length}</b></button>

@@ -52,8 +52,8 @@ router.get(
       await ensureSchema();
 
       if (user.role === 'customer') {
-        // Müşterinin taleplerine gelen yeni teklifler
-        const bidsRes = await query(
+        const [bidsRes, reportStatusRes, requestStatusRes, supportRepliesRes] = await Promise.all([
+          query(
           `SELECT b.id, b.price, b.created_at, r.id as request_id, r.title as request_title, u.full_name as artisan_name
            FROM bids b
            JOIN service_requests r ON b.request_id = r.id
@@ -61,8 +61,35 @@ router.get(
            WHERE r.customer_id = $1
            ORDER BY b.created_at DESC
            LIMIT 50`,
-          [user.id]
-        );
+            [user.id]
+          ),
+          query(
+            `SELECT id, status, resolution_note, updated_at
+             FROM moderation_reports
+             WHERE reporter_id = $1 AND updated_at > created_at
+             ORDER BY updated_at DESC
+             LIMIT 20`,
+            [user.id]
+          ),
+          query(
+            `SELECT id, title, status, updated_at
+             FROM service_requests
+             WHERE customer_id = $1 AND status IN ('completed', 'cancelled')
+             ORDER BY updated_at DESC
+             LIMIT 50`,
+            [user.id]
+          ),
+          query(
+            `SELECT m.id, m.body, m.created_at, t.subject
+             FROM support_ticket_messages m
+             JOIN support_tickets t ON t.id = m.ticket_id
+             JOIN users author ON author.id = m.author_id
+             WHERE t.user_id = $1 AND author.role = 'admin'
+             ORDER BY m.created_at DESC
+             LIMIT 20`,
+            [user.id]
+          ),
+        ]);
 
         for (const row of bidsRes.rows) {
           notifications.push({
@@ -74,15 +101,6 @@ router.get(
             createdAt: row.created_at,
           });
         }
-
-        const reportStatusRes = await query(
-          `SELECT id, status, resolution_note, updated_at
-           FROM moderation_reports
-           WHERE reporter_id = $1 AND updated_at > created_at
-           ORDER BY updated_at DESC
-           LIMIT 20`,
-          [user.id]
-        );
 
         for (const row of reportStatusRes.rows) {
           notifications.push({
@@ -97,15 +115,6 @@ router.get(
           });
         }
 
-        const requestStatusRes = await query(
-          `SELECT id, title, status, updated_at
-           FROM service_requests
-           WHERE customer_id = $1 AND status IN ('completed', 'cancelled')
-           ORDER BY updated_at DESC
-           LIMIT 50`,
-          [user.id]
-        );
-
         for (const row of requestStatusRes.rows) {
           notifications.push({
             id: `notif-customer-job-${row.id}-${row.status}`,
@@ -116,19 +125,6 @@ router.get(
             createdAt: row.updated_at,
           });
         }
-      }
-
-      if (user.role === 'customer' || user.role === 'artisan') {
-        const supportRepliesRes = await query(
-          `SELECT m.id, m.body, m.created_at, t.subject
-           FROM support_ticket_messages m
-           JOIN support_tickets t ON t.id = m.ticket_id
-           JOIN users author ON author.id = m.author_id
-           WHERE t.user_id = $1 AND author.role = 'admin'
-           ORDER BY m.created_at DESC
-           LIMIT 20`,
-          [user.id]
-        );
 
         for (const row of supportRepliesRes.rows) {
           notifications.push({
@@ -143,8 +139,16 @@ router.get(
       }
 
       if (user.role === 'artisan') {
-        // Ustanın alanında açılan yeni iş fırsatları veya kabul edilen teklifleri
-        const acceptedRes = await query(
+        const [
+          acceptedRes,
+          rejectedRes,
+          newReqs,
+          reviewsRes,
+          approvalEventsRes,
+          jobStatusRes,
+          supportRepliesRes,
+        ] = await Promise.all([
+          query(
           `SELECT b.id, b.price, b.updated_at, r.id as request_id, r.title as request_title, u.full_name as customer_name
            FROM bids b
            JOIN service_requests r ON b.request_id = r.id
@@ -152,8 +156,89 @@ router.get(
            WHERE b.artisan_id = $1 AND b.is_accepted = true
            ORDER BY b.updated_at DESC
            LIMIT 50`,
-          [user.id]
-        );
+            [user.id]
+          ),
+          query(
+            `SELECT b.id, b.price, b.updated_at, r.id as request_id, r.title as request_title, u.full_name as customer_name
+             FROM bids b
+             JOIN service_requests r ON b.request_id = r.id
+             JOIN users u ON r.customer_id = u.id
+             WHERE b.artisan_id = $1 AND b.status = 'rejected'
+             ORDER BY b.updated_at DESC
+             LIMIT 50`,
+            [user.id]
+          ),
+          query(
+            `SELECT r.id, r.title, r.city, r.district, r.created_at, u.full_name as customer_name
+             FROM service_requests r
+             JOIN users u ON r.customer_id = u.id
+             JOIN artisan_profiles p ON p.user_id = $1
+             WHERE r.status = 'pending'
+               AND r.moderation_status = 'visible'
+               AND p.is_approved = true
+               AND (
+                 (r.target_artisan_id = $1)
+                 OR (
+                   r.target_artisan_id IS NULL
+                   AND p.is_available = true
+                   AND r.category = p.category
+                   AND r.latitude IS NOT NULL AND r.longitude IS NOT NULL
+                   AND p.latitude IS NOT NULL AND p.longitude IS NOT NULL
+                   AND 6371 * 2 * ASIN(SQRT(LEAST(1, GREATEST(0,
+                     POWER(SIN(RADIANS(p.latitude - r.latitude) / 2), 2)
+                     + COS(RADIANS(r.latitude)) * COS(RADIANS(p.latitude))
+                     * POWER(SIN(RADIANS(p.longitude - r.longitude) / 2), 2)
+                   )))) <= LEAST(COALESCE(r.radius_km, 25), COALESCE(p.service_radius_km, 25))
+                 )
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM bids b
+                 WHERE b.request_id = r.id AND b.artisan_id = $1
+               )
+             ORDER BY (r.target_artisan_id = $1) DESC, r.created_at DESC
+             LIMIT 50`,
+            [user.id]
+          ),
+          query(
+            `SELECT r.id, r.rating, r.created_at, r.comment, u.full_name AS customer_name
+             FROM reviews r
+             JOIN users u ON u.id = r.customer_id
+             WHERE r.artisan_id = $1 AND r.moderation_status = 'visible'
+             ORDER BY r.created_at DESC
+             LIMIT 50`,
+            [user.id]
+          ),
+          query(
+            `SELECT id, action, created_at
+             FROM admin_audit_logs
+             WHERE target_type = 'artisan_application'
+               AND target_id = $1
+               AND action IN ('artisan.approved', 'artisan.rejected')
+             ORDER BY created_at DESC
+             LIMIT 20`,
+            [user.id]
+          ),
+          query(
+            `SELECT r.id, r.title, r.status, r.updated_at
+             FROM service_requests r
+             JOIN bids b ON b.request_id = r.id AND b.artisan_id = $1
+               AND b.is_accepted = true AND b.status = 'accepted'
+             WHERE r.status IN ('completed', 'cancelled')
+             ORDER BY r.updated_at DESC
+             LIMIT 50`,
+            [user.id]
+          ),
+          query(
+            `SELECT m.id, m.body, m.created_at, t.subject
+             FROM support_ticket_messages m
+             JOIN support_tickets t ON t.id = m.ticket_id
+             JOIN users author ON author.id = m.author_id
+             WHERE t.user_id = $1 AND author.role = 'admin'
+             ORDER BY m.created_at DESC
+             LIMIT 20`,
+            [user.id]
+          ),
+        ]);
 
         for (const row of acceptedRes.rows) {
           notifications.push({
@@ -167,17 +252,6 @@ router.get(
         }
 
         // Reddedilen teklifler
-        const rejectedRes = await query(
-          `SELECT b.id, b.price, b.updated_at, r.id as request_id, r.title as request_title, u.full_name as customer_name
-           FROM bids b
-           JOIN service_requests r ON b.request_id = r.id
-           JOIN users u ON r.customer_id = u.id
-           WHERE b.artisan_id = $1 AND b.status = 'rejected'
-           ORDER BY b.updated_at DESC
-           LIMIT 50`,
-          [user.id]
-        );
-
         for (const row of rejectedRes.rows) {
           notifications.push({
             // Yeniden teklif verilip tekrar reddedilirse yeni bir bildirim
@@ -192,38 +266,6 @@ router.get(
         }
 
         // Açık yeni talepler
-        const newReqs = await query(
-          `SELECT r.id, r.title, r.city, r.district, r.created_at, u.full_name as customer_name
-           FROM service_requests r
-           JOIN users u ON r.customer_id = u.id
-           JOIN artisan_profiles p ON p.user_id = $1
-           WHERE r.status = 'pending'
-             AND r.moderation_status = 'visible'
-             AND p.is_approved = true
-             AND (
-               (r.target_artisan_id = $1)
-               OR (
-                 r.target_artisan_id IS NULL
-                 AND p.is_available = true
-                 AND r.category = p.category
-                 AND r.latitude IS NOT NULL AND r.longitude IS NOT NULL
-                 AND p.latitude IS NOT NULL AND p.longitude IS NOT NULL
-                 AND 6371 * 2 * ASIN(SQRT(LEAST(1, GREATEST(0,
-                   POWER(SIN(RADIANS(p.latitude - r.latitude) / 2), 2)
-                   + COS(RADIANS(r.latitude)) * COS(RADIANS(p.latitude))
-                   * POWER(SIN(RADIANS(p.longitude - r.longitude) / 2), 2)
-                 )))) <= LEAST(COALESCE(r.radius_km, 25), COALESCE(p.service_radius_km, 25))
-               )
-             )
-             AND NOT EXISTS (
-               SELECT 1 FROM bids b
-               WHERE b.request_id = r.id AND b.artisan_id = $1
-             )
-           ORDER BY (r.target_artisan_id = $1) DESC, r.created_at DESC
-           LIMIT 50`,
-          [user.id]
-        );
-
         for (const row of newReqs.rows) {
           notifications.push({
             id: `notif-req-${row.id}`,
@@ -235,16 +277,6 @@ router.get(
           });
         }
 
-        const reviewsRes = await query(
-          `SELECT r.id, r.rating, r.created_at, r.comment, u.full_name AS customer_name
-           FROM reviews r
-           JOIN users u ON u.id = r.customer_id
-           WHERE r.artisan_id = $1 AND r.moderation_status = 'visible'
-           ORDER BY r.created_at DESC
-           LIMIT 50`,
-          [user.id]
-        );
-
         for (const row of reviewsRes.rows) {
           notifications.push({
             id: `notif-review-${row.id}`,
@@ -255,17 +287,6 @@ router.get(
             createdAt: row.created_at,
           });
         }
-
-        const approvalEventsRes = await query(
-          `SELECT id, action, created_at
-           FROM admin_audit_logs
-           WHERE target_type = 'artisan_application'
-             AND target_id = $1
-             AND action IN ('artisan.approved', 'artisan.rejected')
-           ORDER BY created_at DESC
-           LIMIT 20`,
-          [user.id]
-        );
 
         for (const row of approvalEventsRes.rows) {
           const approved = row.action === 'artisan.approved';
@@ -281,17 +302,6 @@ router.get(
           });
         }
 
-        const jobStatusRes = await query(
-          `SELECT r.id, r.title, r.status, r.updated_at
-           FROM service_requests r
-           JOIN bids b ON b.request_id = r.id AND b.artisan_id = $1
-             AND b.is_accepted = true AND b.status = 'accepted'
-           WHERE r.status IN ('completed', 'cancelled')
-           ORDER BY r.updated_at DESC
-           LIMIT 50`,
-          [user.id]
-        );
-
         for (const row of jobStatusRes.rows) {
           notifications.push({
             id: `notif-job-${row.id}-${row.status}`,
@@ -300,6 +310,17 @@ router.get(
             type: 'job_status',
             link: '/artisan-dashboard',
             createdAt: row.updated_at,
+          });
+        }
+
+        for (const row of supportRepliesRes.rows) {
+          notifications.push({
+            id: `notif-support-${row.id}`,
+            title: 'Destek Kaydınıza Yanıt Geldi',
+            message: `"${row.subject}" konulu destek kaydınıza yeni bir yanıt var.`,
+            type: 'support_reply',
+            link: '/support',
+            createdAt: row.created_at,
           });
         }
       }
