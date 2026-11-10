@@ -10,7 +10,18 @@ interface NotificationItem {
   id: string;
   title: string;
   message: string;
-  type: 'bid_received' | 'new_request' | 'bid_accepted' | 'bid_rejected' | 'info';
+  type:
+    | 'bid_received'
+    | 'new_request'
+    | 'bid_accepted'
+    | 'bid_rejected'
+    | 'review_received'
+    | 'job_status'
+    | 'artisan_approval'
+    | 'support_reply'
+    | 'report_status'
+    | 'admin_activity'
+    | 'info';
   link: string;
   createdAt: string;
   isRead?: boolean;
@@ -24,16 +35,22 @@ const roleLabels: Record<UserRole, string> = {
 
 // Okundu bilgisi sunucuda saklanır; böylece sayfa yenilense de bildirim
 // yeniden okunmamış (kırmızı) görünmez.
-const markNotificationsRead = async (ids: string[]) => {
-  if (ids.length === 0) return;
+const markNotificationsRead = async (ids: string[]): Promise<boolean> => {
+  if (ids.length === 0) return true;
   try {
-    await fetch('http://localhost:5000/api/v1/notifications/read', {
+    const response = await fetch('http://localhost:5000/api/v1/notifications/read', {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ ids }),
     });
-  } catch {
-    // Sessizce yut: okuma işareti bir sonraki açılışta yeniden denenir.
+    if (!response.ok) {
+      console.error('[Notifications] Okundu durumu kaydedilemedi:', response.status);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('[Notifications] Okundu durumu kaydedilemedi:', error);
+    return false;
   }
 };
 
@@ -45,43 +62,104 @@ export default function Navbar() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const notifRef = useRef<HTMLDivElement>(null);
+  const locallyReadIds = useRef(new Set<string>());
+  const pendingReadIds = useRef(new Set<string>());
 
   useEffect(() => {
     if (!user) {
       setNotifications([]);
       setUnreadCount(0);
+      locallyReadIds.current.clear();
+      pendingReadIds.current.clear();
       return;
     }
 
+    let active = true;
+    let requestId = 0;
     const fetchNotifications = async () => {
+      const currentRequestId = ++requestId;
       try {
         const res = await fetch('http://localhost:5000/api/v1/notifications', {
           headers: getAuthHeaders(),
         });
         if (!res.ok) {
-          setNotifications([]);
-          setUnreadCount(0);
+          console.error('[Notifications] Bildirimler alınamadı:', res.status);
           return;
         }
         const json = await res.json();
-        if (Array.isArray(json.data)) {
-          setNotifications(json.data);
-          const unread =
-            typeof json.unreadCount === 'number'
-              ? json.unreadCount
-              : json.data.filter((item: NotificationItem) => !item.isRead).length;
-          setUnreadCount(unread);
+        if (active && currentRequestId === requestId && Array.isArray(json.data)) {
+          const items = (json.data as NotificationItem[]).map((item) => ({
+            ...item,
+            isRead:
+              item.isRead ||
+              locallyReadIds.current.has(item.id) ||
+              pendingReadIds.current.has(item.id),
+          }));
+          setNotifications(items);
+          setUnreadCount(items.filter((item) => !item.isRead).length);
+
+          if (showNotifications) {
+            const unseenIds = items.filter((item) => !item.isRead).map((item) => item.id);
+            if (unseenIds.length > 0) {
+              unseenIds.forEach((id) => pendingReadIds.current.add(id));
+              void markNotificationsRead(unseenIds).then((success) => {
+                unseenIds.forEach((id) => pendingReadIds.current.delete(id));
+                if (success) {
+                  unseenIds.forEach((id) => locallyReadIds.current.add(id));
+                  setNotifications((current) =>
+                    current.map((item) =>
+                      unseenIds.includes(item.id) ? { ...item, isRead: true } : item
+                    )
+                  );
+                  setUnreadCount((current) => Math.max(0, current - unseenIds.length));
+                }
+              });
+            }
+          }
         }
-      } catch {
-        setNotifications([]);
-        setUnreadCount(0);
+      } catch (error) {
+        if (active) {
+          console.error('[Notifications] Bildirimler alınamadı:', error);
+        }
       }
     };
 
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 15000);
-    return () => clearInterval(interval);
-  }, [user]);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [user, showNotifications]);
+
+  const markVisibleNotificationsRead = async (items: NotificationItem[]) => {
+    const unseenIds = items.filter((item) => !item.isRead).map((item) => item.id);
+    if (unseenIds.length === 0) return;
+
+    unseenIds.forEach((id) => pendingReadIds.current.add(id));
+    setNotifications((current) =>
+      current.map((item) =>
+        unseenIds.includes(item.id) ? { ...item, isRead: true } : item
+      )
+    );
+    setUnreadCount((current) => Math.max(0, current - unseenIds.length));
+
+    const success = await markNotificationsRead(unseenIds);
+    unseenIds.forEach((id) => pendingReadIds.current.delete(id));
+    if (success) {
+      unseenIds.forEach((id) => locallyReadIds.current.add(id));
+      return;
+    }
+
+    setNotifications((current) =>
+      current.map((item) =>
+        unseenIds.includes(item.id) && !locallyReadIds.current.has(item.id)
+          ? { ...item, isRead: false }
+          : item
+      )
+    );
+    setUnreadCount((current) => current + unseenIds.length);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -190,13 +268,7 @@ export default function Navbar() {
                   const nextOpen = !showNotifications;
                   setShowNotifications(nextOpen);
                   if (nextOpen) {
-                    // Panel açıldığında listedeki tüm bildirimleri okundu işaretle.
-                    const ids = notifications.map((notification) => notification.id);
-                    setUnreadCount(0);
-                    setNotifications((prev) =>
-                      prev.map((notification) => ({ ...notification, isRead: true }))
-                    );
-                    markNotificationsRead(ids);
+                    void markVisibleNotificationsRead(notifications);
                   }
                 }}
                 className="notif-button"

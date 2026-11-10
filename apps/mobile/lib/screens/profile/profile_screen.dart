@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/api/api_service.dart';
 import '../../core/storage/token_storage.dart';
 import '../../core/theme/app_theme.dart';
+import 'notifications_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback onLogout;
@@ -36,11 +37,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Çıkış Yap'),
-        content: const Text('Hesabınızdan çıkış yapmak istediğinize emin misiniz?'),
+        content:
+            const Text('Hesabınızdan çıkış yapmak istediğinize emin misiniz?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Vazgeç', style: TextStyle(color: AppColors.inkSecondary)),
+            child: const Text('Vazgeç',
+                style: TextStyle(color: AppColors.inkSecondary)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -86,20 +89,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     radius: 36,
                     backgroundColor: AppColors.accentSoft,
                     child: Text(
-                      _userName != null && _userName!.isNotEmpty ? _userName![0] : 'U',
-                      style: const TextStyle(color: AppColors.accent, fontSize: 28, fontWeight: FontWeight.w700),
+                      _userName != null && _userName!.isNotEmpty
+                          ? _userName![0]
+                          : 'U',
+                      style: const TextStyle(
+                          color: AppColors.accent,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700),
                     ),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     _userName ?? '',
-                    style: const TextStyle(color: AppColors.ink, fontSize: 18, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                        color: AppColors.ink,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isArtisan ? AppColors.warningSoft : AppColors.accentSoft,
+                      color: isArtisan
+                          ? AppColors.warningSoft
+                          : AppColors.accentSoft,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -118,9 +132,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             // Menü Seçenekleri
             _buildMenuItem(Icons.person_outline, 'Hesap Bilgileri', () {}),
-            _buildMenuItem(Icons.notifications_none_rounded, 'Bildirimler', () {}),
+            _buildMenuItem(
+              Icons.notifications_none_rounded,
+              'Bildirimler',
+              () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const NotificationsScreen(),
+                ),
+              ),
+            ),
             _buildMenuItem(Icons.security_rounded, 'Güvenlik ve Şifre', () {}),
-            _buildMenuItem(Icons.help_outline_rounded, 'Yardım & Destek', () {}),
+            _buildMenuItem(
+                Icons.help_outline_rounded, 'Yardım & Destek', () {}),
             const SizedBox(height: 20),
 
             // Çıkış Yap Butonu
@@ -129,14 +152,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
               height: 48,
               child: OutlinedButton.icon(
                 onPressed: _handleLogout,
-                icon: const Icon(Icons.logout, color: AppColors.danger, size: 20),
+                icon:
+                    const Icon(Icons.logout, color: AppColors.danger, size: 20),
                 label: const Text(
                   'Çıkış Yap',
-                  style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                      color: AppColors.danger, fontWeight: FontWeight.w600),
                 ),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppColors.danger),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.fieldRadius)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(AppTheme.fieldRadius)),
                 ),
               ),
             ),
@@ -156,7 +183,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: ListTile(
         leading: Icon(icon, color: AppColors.accent, size: 22),
-        title: Text(title, style: const TextStyle(color: AppColors.ink, fontSize: 14)),
+        title: Text(title,
+            style: const TextStyle(color: AppColors.ink, fontSize: 14)),
         trailing: const Icon(Icons.chevron_right, color: AppColors.inkFaint),
         onTap: onTap,
       ),

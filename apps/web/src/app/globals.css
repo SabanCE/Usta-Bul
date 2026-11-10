@@ -2609,8 +2609,8 @@ img {
   justify-content: center;
   padding: 3rem 1.5rem;
   background:
-    radial-gradient(ellipse at 50% 0%, rgba(57, 168, 155, 0.09), transparent 55%),
-    var(--bg);
+    linear-gradient(rgba(247, 247, 248, 0.12), rgba(247, 247, 248, 0.12)),
+    url('../background.jpg') center / cover no-repeat;
 }
 
 .auth-card {
