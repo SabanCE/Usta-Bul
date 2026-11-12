@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
-import { apiUrl, getAuthHeaders, getAuthToken } from '../../utils/api';
+import { apiUrl, getAuthHeaders, getAuthToken, resolveMediaUrl } from '../../utils/api';
 import LocationPicker, { DEFAULT_RADIUS_KM } from '../../components/LocationPicker';
 
 const AVATAR_MAX_MB = 2;
@@ -81,8 +81,9 @@ export default function CustomerProfilePage() {
         setDistrict(profile.district || '');
         setLatitude(profile.latitude);
         setLongitude(profile.longitude);
-        setAvatarUrl(profile.avatarUrl || '');
-        setAvatarPreview(profile.avatarUrl || '');
+        const profileAvatarUrl = resolveMediaUrl(profile.avatarUrl);
+        setAvatarUrl(profileAvatarUrl);
+        setAvatarPreview(profileAvatarUrl);
       } catch (err: any) {
         setStatusMsg({ type: 'error', text: err?.message || 'Profil bilgileri yüklenemedi.' });
       } finally {
@@ -180,7 +181,7 @@ export default function CustomerProfilePage() {
           throw new Error(uploadJson?.error?.message || 'Profil fotoğrafı yüklenemedi.');
         }
 
-        finalAvatarUrl = uploadJson?.data?.avatarUrl || null;
+        finalAvatarUrl = resolveMediaUrl(uploadJson?.data?.avatarUrl) || null;
 
         if (finalAvatarUrl) {
           setAvatarUrl(finalAvatarUrl);
@@ -224,13 +225,14 @@ export default function CustomerProfilePage() {
       setDistrict(profile.district || '');
       setLatitude(profile.latitude);
       setLongitude(profile.longitude);
-      setAvatarUrl(profile.avatarUrl || '');
-      setAvatarPreview(profile.avatarUrl || '');
+      const profileAvatarUrl = resolveMediaUrl(profile.avatarUrl);
+      setAvatarUrl(profileAvatarUrl);
+      setAvatarPreview(profileAvatarUrl);
 
       updateUser({
         fullName: profile.fullName,
         phone: profile.phone || undefined,
-        avatarUrl: profile.avatarUrl,
+        avatarUrl: profileAvatarUrl,
       });
 
       setStatusMsg({ type: 'success', text: 'Profiliniz başarıyla güncellendi.' });

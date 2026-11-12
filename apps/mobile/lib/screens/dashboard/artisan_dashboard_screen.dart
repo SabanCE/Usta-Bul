@@ -117,6 +117,7 @@ class _ArtisanDashboardScreenState extends State<ArtisanDashboardScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (sheetContext) {
         bool submitting = false;
         String? error;
@@ -125,13 +126,19 @@ class _ArtisanDashboardScreenState extends State<ArtisanDashboardScreen> {
           builder: (context, setSheetState) {
             return Padding(
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom,
                 left: 20,
                 right: 20,
-                top: 20,
+                top: 12,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: (MediaQuery.sizeOf(context).height -
+                          MediaQuery.viewInsetsOf(context).bottom) *
+                      0.88,
+                ),
+                child: Column(
+                mainAxisSize: MainAxisSize.max,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
@@ -167,6 +174,12 @@ class _ArtisanDashboardScreenState extends State<ArtisanDashboardScreen> {
                       ),
                     ),
                   ],
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                   const SizedBox(height: 16),
                   const Text('Teklif Tutarı (₺)',
                       style: TextStyle(color: AppColors.inkSecondary, fontSize: 13)),
@@ -197,6 +210,10 @@ class _ArtisanDashboardScreenState extends State<ArtisanDashboardScreen> {
                     decoration: _inputDecoration('Açıklama girin'),
                   ),
                   const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
+                  ),
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -279,6 +296,7 @@ class _ArtisanDashboardScreenState extends State<ArtisanDashboardScreen> {
                     ),
                   ),
                 ],
+              ),
               ),
             );
           },
@@ -479,6 +497,8 @@ class _ArtisanDashboardScreenState extends State<ArtisanDashboardScreen> {
                           const SizedBox(height: 6),
                           Text(
                             opp['description'] ?? '',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(color: AppColors.inkSecondary, fontSize: 13, height: 1.5),
                           ),
                           const SizedBox(height: 12),

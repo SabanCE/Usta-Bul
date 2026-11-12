@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { apiUrl, getAuthHeaders } from '../../../utils/api';
+import { apiUrl, getAuthHeaders, resolveMediaUrl } from '../../../utils/api';
 import { formatCityDistrict, formatLocation } from '../../../utils/location';
 import LocationMap from '../../../components/LocationMap';
 import DrivingTimeBadge from '../../../components/DrivingTimeBadge';
 import ReportButton from '../../../components/ReportButton';
+import ArtisanAvatar from '../../../components/ArtisanAvatar';
 
 interface Bid {
   id: string;
@@ -452,17 +453,12 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
                   <div className="card-body">
                     <div className="flex-between">
                       <div className="flex" style={{ gap: '0.8rem' }}>
-                        {bid.artisan_avatar ? (
-                          <img
-                            src={bid.artisan_avatar}
-                            alt={bid.artisan_name}
-                            className="avatar"
-                          />
-                        ) : (
-                          <div className="avatar avatar-initial" aria-hidden="true">
-                            {bid.artisan_name?.charAt(0) || 'U'}
-                          </div>
-                        )}
+                        <ArtisanAvatar
+                          src={resolveMediaUrl(bid.artisan_avatar)}
+                          name={bid.artisan_name}
+                          category={detail.category}
+                          className="avatar"
+                        />
                         <div>
                           <div className="artisan-name">{bid.artisan_name}</div>
                           <div className="artisan-meta">

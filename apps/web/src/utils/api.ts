@@ -1,4 +1,4 @@
-const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+const configuredApiUrl = process.env.API_URL?.trim();
 const apiOrigin =
   configuredApiUrl ||
   (process.env.NODE_ENV === 'development'
@@ -7,9 +7,26 @@ const apiOrigin =
 
 export function apiUrl(path: string): string {
   if (!apiOrigin) {
-    throw new Error('NEXT_PUBLIC_API_URL ortam değişkeni tanımlanmalıdır.');
+    throw new Error('API_URL ortam değişkeni tanımlanmalıdır.');
   }
   return `${apiOrigin.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`;
+}
+
+export function resolveMediaUrl(mediaUrl: string | null | undefined): string {
+  if (!mediaUrl) return '';
+
+  const apiBase = new URL(apiUrl('/'));
+  const resolvedUrl = new URL(mediaUrl, apiBase);
+
+  if (
+    resolvedUrl.host === apiBase.host &&
+    apiBase.protocol === 'https:' &&
+    resolvedUrl.protocol === 'http:'
+  ) {
+    resolvedUrl.protocol = 'https:';
+  }
+
+  return resolvedUrl.toString();
 }
 
 export function getAuthToken(): string {

@@ -23,6 +23,7 @@ interface LocationMapProps {
   className?: string;
   radiusKm?: number;
   locationLabel?: string;
+  fitRadius?: boolean;
 }
 
 export default function LocationMap({
@@ -36,6 +37,7 @@ export default function LocationMap({
   className = '',
   radiusKm,
   locationLabel,
+  fitRadius = false,
 }: LocationMapProps) {
   const destination = { latitude, longitude };
   const distanceKm = origin ? haversineDistanceKm(origin, destination) : null;
@@ -83,6 +85,9 @@ export default function LocationMap({
           fillOpacity: 0.12,
           weight: 2,
         }).addTo(map);
+        if (fitRadius) {
+          map.fitBounds(circle.getBounds(), { padding: [24, 24], maxZoom: 13 });
+        }
         circleRef.current = circle;
         mapRef.current = map;
         resizeTimer = window.setTimeout(() => map?.invalidateSize(), 100);
@@ -100,7 +105,7 @@ export default function LocationMap({
       mapRef.current = null;
       circleRef.current = null;
     };
-  }, [latitude, longitude, hasRadius]);
+  }, [latitude, longitude, hasRadius, fitRadius]);
 
   useEffect(() => {
     if (radiusKm === undefined || !circleRef.current || !mapRef.current) return;

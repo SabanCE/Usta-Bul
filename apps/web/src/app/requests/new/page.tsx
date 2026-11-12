@@ -30,6 +30,7 @@ export default function NewRequestPage({
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [formStep, setFormStep] = useState(0);
 
   useEffect(
     () => () => {
@@ -87,8 +88,31 @@ export default function NewRequestPage({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (window.matchMedia('(max-width: 640px)').matches && formStep < 2) {
+      if (formStep === 0 && !title.trim()) {
+        setErrorMsg('Lütfen talebiniz için kısa bir başlık yazın.');
+        return;
+      }
+      setErrorMsg('');
+      setFormStep((step) => step + 1);
+      return;
+    }
+
+    if (!title.trim()) {
+      setFormStep(0);
+      setErrorMsg('Lütfen talebiniz için kısa bir başlık yazın.');
+      return;
+    }
+
     if (latitude === null || longitude === null) {
+      setFormStep(2);
       setErrorMsg('Devam etmek için lütfen konumunuzu bulun veya haritadan konum seçin.');
+      return;
+    }
+
+    if (!address.trim()) {
+      setFormStep(2);
+      setErrorMsg('Lütfen açık adresinizi kontrol edin.');
       return;
     }
 
@@ -98,7 +122,7 @@ export default function NewRequestPage({
     const payload = {
       category,
       title,
-      description,
+      description: description.trim() || 'Detay belirtilmedi.',
       address,
       city: city || undefined,
       district: district || undefined,
@@ -161,7 +185,20 @@ export default function NewRequestPage({
         )}
         {errorMsg && <div className="alert alert-error mb-2">{errorMsg}</div>}
 
-        <form onSubmit={handleSubmit} className="form-card form-grid">
+        <form onSubmit={handleSubmit} className="form-card form-grid request-form">
+          <div className="request-stepper" aria-label="Talep oluşturma adımı">
+            {['İş bilgisi', 'Sorun detayı', 'Konum ve zaman'].map((label, index) => (
+              <div
+                key={label}
+                className={`request-step${formStep === index ? ' is-active' : ''}${formStep > index ? ' is-complete' : ''}`}
+                aria-current={formStep === index ? 'step' : undefined}
+              >
+                <span>{formStep > index ? '✓' : index + 1}</span>
+                <strong>{label}</strong>
+              </div>
+            ))}
+          </div>
+          <div className={`request-form-step${formStep === 0 ? ' is-active' : ''}`}>
           <div className="field">
             <label className="label">Hizmet kategorisi</label>
             <select className="select" value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -179,7 +216,6 @@ export default function NewRequestPage({
             <label className="label">Talep başlığı</label>
             <input
               type="text"
-              required
               className="input"
               placeholder="Örn: Mutfak lavabosu altından su sızıyor"
               value={title}
@@ -187,13 +223,14 @@ export default function NewRequestPage({
             />
           </div>
 
+          </div>
+          <div className={`request-form-step${formStep === 1 ? ' is-active' : ''}`}>
           <div className="field">
-            <label className="label">Açıklama</label>
+            <label className="label">Sorunu anlatın <span className="muted">(isteğe bağlı)</span></label>
             <textarea
-              required
               rows={4}
               className="textarea"
-              placeholder="Arızayı detaylandırın: ne zaman başladı, hangi parçada sorun var, malzeme mevcut mu?"
+              placeholder="Ustanın hazırlıklı gelmesi için sorunu kısaca anlatın."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -210,7 +247,7 @@ export default function NewRequestPage({
               disabled={imagesList.length >= 5 || submitting}
               className="input"
             />
-            <span className="small muted">JPG, PNG, WEBP veya GIF · En fazla 5 görsel, her biri 5 MB</span>
+            <span className="small muted">İsterseniz fotoğraf ekleyin · En fazla 5 görsel</span>
 
             {imagesList.length > 0 && (
               <div className="flex flex-wrap mt-2" style={{ gap: '0.75rem' }}>
@@ -250,6 +287,8 @@ export default function NewRequestPage({
             )}
           </div>
 
+          </div>
+          <div className={`request-form-step${formStep === 2 ? ' is-active' : ''}`}>
           <LocationPicker
             latitude={latitude}
             longitude={longitude}
@@ -261,22 +300,23 @@ export default function NewRequestPage({
               setLongitude(lng);
               if (details?.city) setCity(details.city);
               if (details?.district) setDistrict(details.district);
+              if (details?.address) setAddress(details.address);
             }}
             onRadiusChange={setRadiusKm}
             onAddressChange={(selectedAddress) => setAddress(selectedAddress)}
             address={address}
             label="Hizmet konumu"
-            radiusLabel="Ustaları ne kadar uzakta aramak istersiniz?"
-            helperText="Konum izni verin veya haritadan adres arayıp pin ile konum seçin."
+            helperText="Konumunuzu bulun veya haritadan seçin. Adres otomatik doldurulur."
+            showRadius={false}
+            showMap={false}
           />
 
           <div className="field">
-            <label className="label">Açık adres</label>
+            <label className="label">Açık adres <span className="muted">(kapı numarasını ekleyin)</span></label>
             <input
               type="text"
-              required
               className="input"
-              placeholder="Mahalle, sokak, bina no"
+              placeholder="Konum seçince otomatik doldurulur"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
             />
@@ -306,6 +346,16 @@ export default function NewRequestPage({
             </div>
           </div>
 
+          <details className="request-extra-options">
+            <summary>Diğer seçenekler</summary>
+            <div className="field request-radius-options">
+              <label className="label">Ustaları ne kadar uzakta arayalım?</label>
+              <select className="select" value={radiusKm} onChange={(e) => setRadiusKm(Number(e.target.value))}>
+                {[5, 10, 25, 50, 100, 200].map((radius) => (
+                  <option key={radius} value={radius}>{radius} km</option>
+                ))}
+              </select>
+            </div>
           <div className="request-phone-sharing">
             <div className="request-phone-sharing-copy">
               <strong>Telefonum eşleşen ustalara görünsün</strong>
@@ -325,8 +375,45 @@ export default function NewRequestPage({
               <span />
             </button>
           </div>
+          </details>
 
+          </div>
+          <div className="request-mobile-actions">
+            {formStep > 0 && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => { setFormStep((step) => step - 1); setErrorMsg(''); }}
+              >
+                Geri
+              </button>
+            )}
+            {formStep < 2 ? (
+              <button
+                type="button"
+                className="btn btn-primary btn-lg"
+                onClick={() => {
+                  if (formStep === 0 && !title.trim()) {
+                    setErrorMsg('Lütfen talebiniz için kısa bir başlık yazın.');
+                    return;
+                  }
+                  setErrorMsg('');
+                  setFormStep((step) => step + 1);
+                }}
+              >
+                Devam
+              </button>
+            ) : (
           <button type="submit" disabled={submitting} className="btn btn-primary btn-block btn-lg">
+            {submitting
+              ? 'Talep oluşturuluyor...'
+              : targetArtisanId
+                ? 'Bu Ustaya Gönder'
+                : 'Talebi yayınla'}
+          </button>
+            )}
+          </div>
+          <button type="submit" disabled={submitting} className="btn btn-primary btn-block btn-lg request-desktop-submit">
             {submitting
               ? 'Talep oluşturuluyor...'
               : targetArtisanId

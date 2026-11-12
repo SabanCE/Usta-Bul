@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth, UserRole } from '../context/AuthContext';
-import { apiUrl, getAuthHeaders } from '../utils/api';
+import { apiUrl, getAuthHeaders, resolveMediaUrl } from '../utils/api';
+import ArtisanAvatar from './ArtisanAvatar';
 
 interface NotificationItem {
   id: string;
@@ -200,9 +201,6 @@ export default function Navbar() {
               <Link href="/" className={`nav-link nav-link-keep ${isActive('/') ? 'nav-link-active' : ''}`}>
                 Ustalar
               </Link>
-              <Link href="/#categories" className="nav-link">
-                Kategoriler
-              </Link>
               <Link href="/register?role=artisan" className="nav-link nav-link-keep">
                 Usta Olarak Katıl
               </Link>
@@ -325,22 +323,12 @@ export default function Navbar() {
 
           {user && (
             <div className="nav-user">
-              <span className="nav-avatar">
-                {user.avatarUrl ? (
-                  <img
-                    src={user.avatarUrl}
-                    alt={user.fullName || 'Profil fotoğrafı'}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      borderRadius: '50%',
-                    }}
-                  />
-                ) : (
-                  user.fullName?.charAt(0) || 'U'
-                )}
-              </span>
+              <ArtisanAvatar
+                src={resolveMediaUrl(user.avatarUrl)}
+                name={user.fullName || 'Kullanıcı'}
+                className="nav-avatar"
+                showTradeIcon={user.role === 'artisan'}
+              />
               <div className="nav-user-name">
                 <div>{user.fullName}</div>
                 <div className="nav-user-role">{roleLabels[user.role]}</div>

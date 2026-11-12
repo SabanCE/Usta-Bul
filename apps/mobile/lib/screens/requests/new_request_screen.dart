@@ -25,6 +25,9 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   double? _latitude;
   double? _longitude;
   int _radiusKm = kDefaultRadiusKm;
+  int _currentStep = 0;
+  bool _locationRequired = false;
+  bool _urgencyChanged = false;
 
   String _urgency = 'urgent';
   bool _isSubmitting = false;
@@ -45,29 +48,80 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     _selectedCategory = widget.initialCategory ?? 'plumber';
   }
 
-  Future<void> _submitRequest() async {
-    if (!_formKey.currentState!.validate()) return;
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descController.dispose();
+    _addressController.dispose();
+    super.dispose();
+  }
 
-    if (_latitude == null || _longitude == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Devam etmek için lütfen konumunuzu bulun.'),
-        ),
-      );
+  String get _selectedUrgency {
+    final isPhone = MediaQuery.sizeOf(context).width < 600;
+    return isPhone && !_urgencyChanged ? 'normal' : _urgency;
+  }
+
+  void _continue() {
+    if (_currentStep == 0) {
+      if (_formKey.currentState!.validate()) {
+        setState(() => _currentStep = 1);
+      }
+    } else if (_currentStep == 1) {
+      setState(() => _currentStep = 2);
+    } else {
+      _submitRequest();
+    }
+  }
+
+  Widget _buildStepIndicator() {
+    const labels = ['İş bilgisi', 'Sorun detayı', 'Konum'];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Adım ${_currentStep + 1}/3 · ${labels[_currentStep]}',
+              style: const TextStyle(
+                  color: AppColors.inkSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          LinearProgressIndicator(
+            value: (_currentStep + 1) / 3,
+            minHeight: 4,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _submitRequest() async {
+    if (_titleController.text.trim().isEmpty) {
+      setState(() => _currentStep = 0);
       return;
     }
+
+    if (_latitude == null || _longitude == null) {
+      setState(() => _locationRequired = true);
+      return;
+    }
+
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);
 
     final payload = {
       'category': _selectedCategory,
       'title': _titleController.text.trim(),
-      'description': _descController.text.trim(),
+      'description': _descController.text.trim().isEmpty
+          ? 'Detay belirtilmedi.'
+          : _descController.text.trim(),
       'address': _addressController.text.trim(),
       'latitude': _latitude,
       'longitude': _longitude,
       'radiusKm': _radiusKm,
-      'urgency': _urgency,
+      'urgency': _selectedUrgency,
       if (widget.targetArtisanId != null)
         'targetArtisanId': widget.targetArtisanId,
     };
@@ -122,18 +176,25 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isPhone = MediaQuery.sizeOf(context).width < 600;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Yeni Hizmet Talebi'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      body: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            if (isPhone) _buildStepIndicator(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
               // Kategori Seçimi
+              if (!isPhone || _currentStep == 0) ...[
               const _SectionLabel('Kategori'),
               const SizedBox(height: 8),
               Container(
@@ -163,8 +224,10 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                 ),
               ),
               const SizedBox(height: 20),
+              ],
 
               // Aciliyet Durumu
+              if (!isPhone || _currentStep == 2) ...[
               const _SectionLabel('Aciliyet Durumu'),
               const SizedBox(height: 8),
               Row(
@@ -180,8 +243,10 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                 ],
               ),
               const SizedBox(height: 20),
+              ],
 
               // Talep Başlığı
+              if (!isPhone || _currentStep == 0) ...[
               const _SectionLabel('Başlık'),
               const SizedBox(height: 8),
               TextFormField(
@@ -194,8 +259,10 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                     : null,
               ),
               const SizedBox(height: 20),
+              ],
 
               // Detaylı Açıklama
+              if (!isPhone || _currentStep == 1) ...[
               const _SectionLabel('Detaylı Açıklama'),
               const SizedBox(height: 8),
               TextFormField(
@@ -204,13 +271,12 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                 style: const TextStyle(color: AppColors.ink, fontSize: 15),
                 decoration: _inputDecoration(
                     'Sorunu detaylandırın, parça değişimi gerekebilir mi vb.'),
-                validator: (val) => val == null || val.trim().isEmpty
-                    ? 'Lütfen sorun açıklamasını yazın'
-                    : null,
               ),
               const SizedBox(height: 20),
+              ],
 
               // Konum & Yarıçap
+              if (!isPhone || _currentStep == 2) ...[
               AppLocationPicker(
                 latitude: _latitude,
                 longitude: _longitude,
@@ -219,16 +285,42 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                   setState(() {
                     _latitude = lat;
                     _longitude = lng;
+                    _locationRequired = false;
                   });
                 },
-                onRadiusChanged: (radius) {
-                  setState(() => _radiusKm = radius);
-                },
+                onRadiusChanged: (radius) => setState(() => _radiusKm = radius),
+                showRadius: !isPhone,
                 label: 'Hizmet konumu',
                 radiusLabel: 'Ustaları ne kadar uzakta aramak istersiniz?',
                 helperText:
                     'Konum izni vererek çevrenizdeki ustaların eşleşmesini sağlayın.',
               ),
+              if (_locationRequired) ...[
+                const SizedBox(height: 8),
+                const Text('Devam etmek için konumunuzu bulun.',
+                    style: TextStyle(color: AppColors.danger, fontSize: 13)),
+              ],
+              if (isPhone)
+                ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  title: const Text('Diğer seçenekler'),
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Wrap(
+                        spacing: 8,
+                        children: kRadiusOptions.map((radius) {
+                          return ChoiceChip(
+                            label: Text('$radius km'),
+                            selected: _radiusKm == radius,
+                            onSelected: (_) =>
+                                setState(() => _radiusKm = radius),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
               const SizedBox(height: 20),
 
               // Adres
@@ -243,10 +335,11 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                     ? 'Lütfen açık adres girin'
                     : null,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
+              ],
 
               // Gönder Butonu
-              SizedBox(
+              if (!isPhone) SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
@@ -266,19 +359,67 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                         ),
                 ),
               ),
-            ],
-          ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
+      bottomNavigationBar: isPhone
+          ? SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                child: Row(
+                  children: [
+                    if (_currentStep > 0) ...[
+                      OutlinedButton(
+                        onPressed: () => setState(() => _currentStep--),
+                        child: const Text('Geri'),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    Expanded(
+                      child: SizedBox(
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: _isSubmitting ? null : _continue,
+                          child: _isSubmitting
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 2.5),
+                                )
+                              : Text(
+                                  _currentStep < 2
+                                      ? 'Devam'
+                                      : widget.targetArtisanId == null
+                                          ? 'Talebi Yayınla'
+                                          : 'Bu Ustaya Gönder',
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
     );
   }
 
   Widget _buildUrgencyButton(
       String label, String value, Color color, Color softColor) {
-    final isSelected = _urgency == value;
+    final isSelected = _selectedUrgency == value;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _urgency = value),
+        onTap: () => setState(() {
+          _urgency = value;
+          _urgencyChanged = true;
+        }),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           alignment: Alignment.center,

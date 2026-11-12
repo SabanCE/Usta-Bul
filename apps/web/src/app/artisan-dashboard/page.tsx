@@ -211,8 +211,6 @@ export default function ArtisanDashboardPage() {
     }
   };
 
-  const currentCategory = artisanProfile?.category || '';
-  const currentArea = formatLocation(artisanProfile?.city, artisanProfile?.district);
   const currentRadius = artisanProfile?.service_radius_km;
   const isAvailable = artisanProfile?.is_available ?? true;
   const artisanCenter = useMemo(
@@ -232,13 +230,6 @@ export default function ArtisanDashboardPage() {
 
   const completedBids = myBids.filter(isCompletedJob);
   const activeBids = myBids.filter((bid) => !isCompletedJob(bid));
-  const acceptedJobCount = myBids.filter(
-    (bid) => bid.is_accepted && bid.request_status === 'in_progress'
-  ).length;
-  const activeOfferCount = myBids.filter(
-    (bid) => bid.status === 'pending' && bid.request_status === 'pending'
-  ).length;
-
   const requestStatusMap: Record<string, { label: string; cls: string }> = {
     pending: { label: 'Teklif bekliyor', cls: 'badge-warning' },
     in_progress: { label: 'Devam ediyor', cls: 'badge-accent' },
@@ -494,26 +485,17 @@ export default function ArtisanDashboardPage() {
         <DiscoveryMap
           points={mapOpportunityPoints}
           center={artisanCenter}
+          routeOrigin={artisanCenter}
           radiusKm={currentRadius}
           onSelect={focusMapOpportunity}
           focusRequest={mapFocusRequest}
         />
         <DraggableMapPanel className="rota-panel rota-artisan-panel" ariaLabel="İş fırsatları">
-          <div className="rota-panel-head">
-            <div className="rota-brandline"><span className="rota-brandmark">U</span><span>USTA BUL <i>·</i> İŞ ROTASI</span></div>
-            <p className="eyebrow">USTA PANELİ · {isAvailable ? 'MÜSAİT' : 'MEŞGUL'}</p>
-            <h1>İşiniz,<br /><em>yakınınızda.</em></h1>
-            <p className="rota-intro">{currentArea || 'Hizmet bölgeniz'}{currentRadius ? ` · ${currentRadius} km çevre` : ''}. Size uygun işleri haritada keşfedin.</p>
-            <div className="rota-work-stats">
-              <span><strong>{opportunities.length}</strong> açık iş</span>
-              <span><strong>{activeOfferCount}</strong> teklifiniz</span>
-            </div>
-            <div className="rota-panel-actions">
-              <button type="button" className={`rota-location-button${isAvailable ? '' : ' rota-busy-button'}`} onClick={() => void toggleAvailability()} disabled={isUpdatingAvailability}>
-                <span>●</span>{isUpdatingAvailability ? 'Güncelleniyor…' : isAvailable ? 'Müsait durumdasınız' : 'Müsaitliği aç'}
-              </button>
-              <button type="button" className="rota-search-button" onClick={() => void fetchData()} disabled={loading}>{loading ? 'Yükleniyor…' : 'İşleri yenile'} <span>↻</span></button>
-            </div>
+          <div className="rota-panel-actions rota-artisan-toolbar">
+            <button type="button" className={`rota-location-button${isAvailable ? '' : ' rota-busy-button'}`} onClick={() => void toggleAvailability()} disabled={isUpdatingAvailability}>
+              <span>●</span>{isUpdatingAvailability ? 'Güncelleniyor…' : isAvailable ? 'Müsait durumdasınız' : 'Müsaitliği aç'}
+            </button>
+            <button type="button" className="rota-search-button" onClick={() => void fetchData()} disabled={loading}>{loading ? 'Yükleniyor…' : 'İşleri yenile'} <span>↻</span></button>
           </div>
 
           {(errorMsg || successMsg) && <div className={`rota-panel-message${errorMsg ? ' rota-panel-message-error' : ''}`} role={errorMsg ? 'alert' : 'status'}>{errorMsg || successMsg}</div>}
@@ -568,7 +550,27 @@ export default function ArtisanDashboardPage() {
                   )}
                   <div className="rota-job-footer">
                     {bid ? <span className={`rota-bid-state${bid.status === 'rejected' ? ' rota-bid-rejected' : ''}`}>{bid.status === 'rejected' ? 'Tekrar teklif verilebilir' : bid.is_accepted ? 'Teklif kabul edildi' : 'Teklif gönderildi'}</span> : <span className="small muted">Müşteri: {opportunity.customer_name || 'Müşteri'}</span>}
-                    <span className="rota-pin-action">İncele ↗</span>
+                    {selectedMapCanBid ? (
+                      <button
+                        type="button"
+                        className="rota-job-quick-bid"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          startMapBid(opportunity);
+                        }}
+                      >
+                        Teklif ver
+                      </button>
+                    ) : (
+                      <span className="rota-pin-action">İncele ↗</span>
+                    )}
+                    <Link
+                      href={`/artisan-dashboard/requests/${opportunity.id}`}
+                      className="rota-job-quick-bid"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      Detay gör
+                    </Link>
                   </div>
                   {selectedMapOpportunityId === opportunity.id && (
                     <div className="rota-job-detail">
@@ -577,7 +579,7 @@ export default function ArtisanDashboardPage() {
                       {opportunity.images?.length > 0 && <div className="rota-job-images">{opportunity.images.slice(0, 3).map((image) => <img key={image} src={image} alt="İş talebi" />)}</div>}
                       {activeRequestId === opportunity.id && selectedMapCanBid ? (
                         <form className="rota-bid-form" onSubmit={(event) => { event.preventDefault(); void handleSendBid(opportunity.id); }}>
-                          <label>Teklif tutarı (₺)<input type="number" min={1} required value={price} onChange={(event) => setPrice(event.target.value)} placeholder="Örn. 850" /></label>
+                          <label>Teklif tutarı (₺)<input type="number" inputMode="decimal" min={1} required value={price} onChange={(event) => setPrice(event.target.value)} placeholder="Örn. 850" /></label>
                           <label>Tahmini süre<input type="text" maxLength={100} value={duration} onChange={(event) => setDuration(event.target.value)} placeholder="Örn. 2 saat" /></label>
                           <label className="rota-bid-note">Müşteriye not<textarea maxLength={1000} rows={2} value={note} onChange={(event) => setNote(event.target.value)} placeholder="İş için kısa bir açıklama ekleyin" /></label>
                           {bidError && <p className="rota-inline-error" role="alert">{bidError}</p>}
@@ -729,17 +731,7 @@ export default function ArtisanDashboardPage() {
   return (
     <div className="page">
       <div className="container">
-        <div className="page-header">
-          <div>
-            <p className="eyebrow">Usta paneli</p>
-            <h1 className="page-title">Merhaba, {user?.fullName || 'Usta'}</h1>
-            <p className="page-subtitle">
-              {categoryLabels[currentCategory] || currentCategory || 'Kategori belirtilmedi'}
-              {currentArea ? ` · ${currentArea}` : ''}
-              {currentRadius ? ` · ${currentRadius} km hizmet yarıçapı` : ''}
-            </p>
-          </div>
-
+        <div className="artisan-dashboard-toolbar">
           <div className="flex flex-wrap">
             <button
               type="button"
@@ -753,21 +745,16 @@ export default function ArtisanDashboardPage() {
                 ? 'Güncelleniyor...'
                 : isAvailable
                   ? 'Müsait · iş alıyor'
-                  : 'Meşgul · duraklatıldı'}
+                  : 'Meşgul · iş almıyor'}
             </button>
-            <Link href="/artisan-dashboard/profile" className="btn btn-primary">
-              Profilimi düzenle
-            </Link>
-            {user?.id && (
-              <Link href={`/artisans/${user.id}`} className="btn btn-secondary">
-                Portföyüm
-              </Link>
-            )}
+            <button type="button" onClick={fetchData} className="btn btn-ghost btn-sm" disabled={loading}>
+              {loading ? 'Yenileniyor...' : 'İşleri yenile'}
+            </button>
           </div>
         </div>
 
-        {errorMsg && <div className="alert alert-error mb-3">{errorMsg}</div>}
-        {successMsg && <div className="alert alert-success mb-3">{successMsg}</div>}
+        {errorMsg && <div className="alert alert-error mb-3" role="alert">{errorMsg}</div>}
+        {successMsg && <div className="alert alert-success mb-3" role="status">{successMsg}</div>}
 
         {artisanProfile && artisanProfile.is_approved === false && (
           <div className="alert alert-warning mb-3">
@@ -776,28 +763,6 @@ export default function ArtisanDashboardPage() {
             tamamlayıp kaydettiyseniz onay genellikle kısa süre içinde yapılır.
           </div>
         )}
-
-        <div className="stat-grid">          <div className="stat-card">
-            <div className="stat-label">Bölgenizdeki açık işler</div>
-            <div className="stat-value">{opportunities.length}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Aktif teklifler</div>
-            <div className="stat-value">{activeOfferCount}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Devam eden işler</div>
-            <div className="stat-value">{acceptedJobCount}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Tamamlanan işler</div>
-            <div className="stat-value">{completedBids.length}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Saatlik servis ücreti</div>
-            <div className="stat-value">{artisanProfile?.hourly_rate ? `${artisanProfile.hourly_rate} ₺` : 'Belirtilmemiş'}</div>
-          </div>
-        </div>
 
         <div className="tabs mb-3">
           <button
@@ -826,15 +791,7 @@ export default function ArtisanDashboardPage() {
         {String(activeTab) === 'opportunities' && (
           <div>
             <div className="section-head">
-              <div>
-                <h2 className="section-title">Bölgenizdeki iş fırsatları</h2>
-                <p className="page-subtitle">
-                  Müşterilerin oluşturduğu açık talepleri inceleyin, hızlıca fiyat ve süre teklifi verin.
-                </p>
-              </div>
-              <button type="button" onClick={fetchData} className="btn btn-secondary btn-sm">
-                Yenile
-              </button>
+              <h2 className="section-title">İş fırsatları ({opportunities.length})</h2>
             </div>
 
             {loading ? (
@@ -888,18 +845,9 @@ export default function ArtisanDashboardPage() {
                       : null;
 
                   return (
-                    <div
+                    <article
                       key={item.id}
-                      className="card bid-card-clickable"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => openOpportunity(item)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          openOpportunity(item);
-                        }
-                      }}
+                      className="card"
                     >
                       <div className="card-body">
                         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
@@ -944,8 +892,6 @@ export default function ArtisanDashboardPage() {
                                   rel="noreferrer"
                                   className="small"
                                   style={{ color: 'var(--primary)', fontWeight: 650 }}
-                                  onClick={(event) => event.stopPropagation()}
-                                  onKeyDown={(event) => event.stopPropagation()}
                                 >
                                   Haritada gör
                                 </a>
@@ -955,8 +901,6 @@ export default function ArtisanDashboardPage() {
                                   rel="noreferrer"
                                   className="small"
                                   style={{ color: 'var(--primary)', fontWeight: 650 }}
-                                  onClick={(event) => event.stopPropagation()}
-                                  onKeyDown={(event) => event.stopPropagation()}
                                 >
                                   Yol tarifi al ↗
                                 </a>
@@ -976,11 +920,7 @@ export default function ArtisanDashboardPage() {
                                   <div className="price">{existingBid.price} ₺</div>
                                   <button
                                     type="button"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      openOpportunity(item, true);
-                                    }}
-                                    onKeyDown={(event) => event.stopPropagation()}
+                                    onClick={() => openOpportunity(item, true)}
                                     className="btn btn-primary btn-sm mt-2"
                                   >
                                     Tekrar teklif ver
@@ -998,24 +938,22 @@ export default function ArtisanDashboardPage() {
                             ) : (
                               <button
                                 type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  openOpportunity(item, true);
-                                }}
-                                onKeyDown={(event) => event.stopPropagation()}
+                                onClick={() => openOpportunity(item, true)}
                                 className="btn btn-primary btn-sm"
                               >
                                 Teklif ver
                               </button>
                             )}
+                            <Link
+                              href={`/artisan-dashboard/requests/${item.id}`}
+                              className="btn btn-secondary btn-sm mt-2"
+                            >
+                              Detay gör
+                            </Link>
                           </div>
                         </div>
-
-                        <div className="bid-detail-hint" style={{ marginTop: '0.55rem' }}>
-                          Detayları ve yol haritasını gör →
-                        </div>
                       </div>
-                    </div>
+                    </article>
                   );
                 })}
               </div>

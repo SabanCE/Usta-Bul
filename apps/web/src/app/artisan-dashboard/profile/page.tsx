@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../context/AuthContext';
 import LocationPicker, { DEFAULT_RADIUS_KM } from '../../../components/LocationPicker';
-import { apiUrl, getAuthHeaders, getAuthToken } from '../../../utils/api';
+import { apiUrl, getAuthHeaders, getAuthToken, resolveMediaUrl } from '../../../utils/api';
+import ArtisanAvatar from '../../../components/ArtisanAvatar';
 
 const AVATAR_MAX_MB = 2;
 const AVATAR_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif';
@@ -85,8 +86,9 @@ export default function EditArtisanProfilePage() {
         setCity(data.city || '');
         setDistrict(data.district || '');
         setServiceRadiusKm(data.service_radius_km ?? DEFAULT_RADIUS_KM);
-        setAvatarUrl(data.avatar_url || '');
-        setAvatarPreview(data.avatar_url || '');
+        const profileAvatarUrl = resolveMediaUrl(data.avatar_url);
+        setAvatarUrl(profileAvatarUrl);
+        setAvatarPreview(profileAvatarUrl);
         setIsAvailable(data.is_available ?? true);
         if (Array.isArray(data.services)) {
           setServices(data.services);
@@ -194,7 +196,7 @@ export default function EditArtisanProfilePage() {
           throw new Error(uploadJson?.error?.message || 'Profil fotoğrafı yüklenemedi.');
         }
 
-        finalAvatarUrl = uploadJson?.data?.avatarUrl || null;
+        finalAvatarUrl = resolveMediaUrl(uploadJson?.data?.avatarUrl) || null;
 
         if (finalAvatarUrl) {
           setAvatarUrl(finalAvatarUrl);
@@ -460,17 +462,12 @@ export default function EditArtisanProfilePage() {
                   flexShrink: 0,
                 }}
               >
-                {avatarPreview ? (
-                  <img
-                    src={avatarPreview}
-                    alt="Profil fotoğrafı önizlemesi"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                ) : (
-                  <span className="small muted" style={{ textAlign: 'center', padding: '0.4rem' }}>
-                    Fotoğraf yok
-                  </span>
-                )}
+                <ArtisanAvatar
+                  src={avatarPreview}
+                  name={user?.fullName || 'Usta'}
+                  category={category}
+                  className="artisan-avatar-preview"
+                />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

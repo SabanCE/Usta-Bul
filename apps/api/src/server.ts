@@ -4,7 +4,7 @@ import { ensureSchema } from './config/schema';
 
 const PORT = parseInt(process.env.PORT || '5000', 10);
 
-const server = app.listen(PORT, async () => {
+const server = app.listen(PORT,'0.0.0.0', async () => {
   console.log('====================================================');
   console.log(`🚀 [Usta Bul API] http://localhost:${PORT} üzerinde çalışıyor.`);
   console.log(`📚 [Swagger UI]   http://localhost:${PORT}/api-docs`);

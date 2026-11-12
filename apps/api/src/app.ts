@@ -9,6 +9,8 @@ import { notFoundHandler } from './middlewares/notFoundHandler';
 export const createApp = (): Application => {
   const app = express();
 
+  app.set('trust proxy', 1);
+
   // Temel Güvenlik & Parsing Middleware'leri
   app.use(cors());
   app.use(express.json());

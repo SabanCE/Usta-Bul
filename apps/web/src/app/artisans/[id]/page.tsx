@@ -4,8 +4,10 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { formatCityDistrict } from '../../../utils/location';
 import { useAuth } from '../../../context/AuthContext';
-import { apiUrl, getAuthHeaders } from '../../../utils/api';
+import { apiUrl, getAuthHeaders, resolveMediaUrl } from '../../../utils/api';
 import ReportButton from '../../../components/ReportButton';
+import LocationMap from '../../../components/LocationMap';
+import ArtisanAvatar from '../../../components/ArtisanAvatar';
 
 interface ArtisanService {
   id: string;
@@ -152,18 +154,12 @@ export default function ArtisanProfilePage({ params }: { params: { id: string } 
       <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '2.5rem 0' }}>
         <div className="container">
           <div className="detail-head" style={{ padding: 0 }}>
-            {artisan.avatar_url ? (
-              <img
-                src={artisan.avatar_url}
-                alt={artisan.full_name}
-                className="avatar avatar-xl"
-                style={{ borderRadius: 20 }}
-              />
-            ) : (
-              <div className="avatar avatar-xl avatar-initial" style={{ borderRadius: 20 }} aria-hidden="true">
-                {artisan.full_name?.charAt(0) || 'U'}
-              </div>
-            )}
+            <ArtisanAvatar
+              src={resolveMediaUrl(artisan.avatar_url)}
+              name={artisan.full_name}
+              category={artisan.category}
+              className="avatar avatar-xl"
+            />
 
             <div style={{ flex: 1, minWidth: 260 }}>
               <div className="flex flex-wrap" style={{ marginBottom: '0.35rem' }}>
@@ -173,9 +169,8 @@ export default function ArtisanProfilePage({ params }: { params: { id: string } 
 
               <p className="page-subtitle" style={{ marginTop: 0 }}>
                 {formatCityDistrict(artisan.city, artisan.district)
-                  ? `${formatCityDistrict(artisan.city, artisan.district)} ve çevresine hizmet veriyor.`
+                  ? `${formatCityDistrict(artisan.city, artisan.district)} ve çevresinde hizmet veriyor.`
                   : 'Konumuna göre yakınınızdaki işler için hizmet veriyor.'}
-                {artisan.service_radius_km ? ` Hizmet yarıçapı ${artisan.service_radius_km} km.` : ''}
               </p>
 
               <div className="flex flex-wrap mt-2" style={{ gap: '1.25rem' }}>
@@ -249,6 +244,37 @@ export default function ArtisanProfilePage({ params }: { params: { id: string } 
               )}
             </div>
           </div>
+
+          {typeof artisan.latitude === 'number' &&
+            Number.isFinite(artisan.latitude) &&
+            typeof artisan.longitude === 'number' &&
+            Number.isFinite(artisan.longitude) &&
+            typeof artisan.service_radius_km === 'number' &&
+            Number.isFinite(artisan.service_radius_km) &&
+            artisan.service_radius_km > 0 && (
+              <section className="artisan-service-area" aria-labelledby="artisan-service-area-title">
+                <div>
+                  <p className="eyebrow">Hizmet bölgesi</p>
+                  <h2 id="artisan-service-area-title" className="section-title">
+                    Ustanın çalışma alanı
+                  </h2>
+                  <p className="page-subtitle">
+                    Haritadaki daire, ustanın hizmet verdiği yaklaşık {artisan.service_radius_km} km yarıçapı gösterir.
+                  </p>
+                </div>
+                <LocationMap
+                  latitude={artisan.latitude}
+                  longitude={artisan.longitude}
+                  radiusKm={artisan.service_radius_km}
+                  title={`${artisan.full_name} hizmet bölgesi`}
+                  locationLabel={formatCityDistrict(artisan.city, artisan.district)}
+                  height={280}
+                  showDirections={false}
+                  showDistance={false}
+                  fitRadius
+                />
+              </section>
+            )}
 
           <div className="detail-tabs">
             {[

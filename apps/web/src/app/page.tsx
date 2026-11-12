@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { DEFAULT_RADIUS_KM, RADIUS_OPTIONS } from '../components/LocationPicker';
 import { formatCityDistrict, formatDistanceKm } from '../utils/location';
 import { useAuth } from '../context/AuthContext';
-import { apiUrl, getAuthHeaders } from '../utils/api';
+import { apiUrl, getAuthHeaders, resolveMediaUrl } from '../utils/api';
 import DiscoveryMap, { DiscoveryPoint } from '../components/DiscoveryMap';
 import DraggableMapPanel from '../components/DraggableMapPanel';
+import ArtisanAvatar from '../components/ArtisanAvatar';
 
 interface Artisan {
   id: string;
@@ -50,6 +51,8 @@ export default function HomePage() {
   const [radiusKm, setRadiusKm] = useState<number>(DEFAULT_RADIUS_KM);
   const [sortBy, setSortBy] = useState<string>('rating');
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [routeOrigin, setRouteOrigin] = useState<{ latitude: number; longitude: number } | null>(null);
+  const routeLocationRequested = useRef(false);
   const [locationReady, setLocationReady] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const { locate, locating: locationLoading, error: locationError } = useGeolocation();
@@ -62,6 +65,18 @@ export default function HomePage() {
   const handleSelectArtisan = (artisanId: string) => {
     setSelectedArtisanId(artisanId);
     setFocusRequest((request) => request + 1);
+    if (!routeOrigin && !routeLocationRequested.current) {
+      routeLocationRequested.current = true;
+      void locate().then((coordinates) => {
+        if (coordinates) {
+          setRouteOrigin({
+            latitude: coordinates.latitude,
+            longitude: coordinates.longitude,
+          });
+        }
+        routeLocationRequested.current = false;
+      });
+    }
   };
 
   useEffect(() => {
@@ -88,6 +103,7 @@ export default function HomePage() {
             active
           ) {
             setUserLocation({ lat: latitude, lng: longitude });
+            setRouteOrigin({ latitude, longitude });
             setSortBy('distance');
           }
         } catch (error: any) {
@@ -141,7 +157,7 @@ export default function HomePage() {
       setSelectedArtisanId((current) =>
         current && nextArtisans.some((artisan) => artisan.id === current)
           ? current
-          : nextArtisans[0]?.id || null
+          : null
       );
     } catch (err: any) {
       setArtisans([]);
@@ -159,6 +175,10 @@ export default function HomePage() {
     const coordinates = await locate();
     if (coordinates) {
       setUserLocation({ lat: coordinates.latitude, lng: coordinates.longitude });
+      setRouteOrigin({
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+      });
       setSortBy('distance');
     }
   };
@@ -218,12 +238,32 @@ export default function HomePage() {
       <DiscoveryMap
         points={mapPoints}
         center={mapCenter}
+        routeOrigin={routeOrigin}
         radiusKm={userLocation ? radiusKm : undefined}
         onSelect={handleSelectArtisan}
         focusRequest={focusRequest}
       />
       <DraggableMapPanel className="rota-panel" ariaLabel="Usta arama">
         <form className="rota-search" onSubmit={(event) => { event.preventDefault(); void fetchArtisans(); }}>
+          <div className="rota-panel-decor" aria-hidden="true">
+            <svg viewBox="0 0 440 900" preserveAspectRatio="xMaxYMin slice" focusable="false">
+              <g fill="none" stroke="#bfd24f" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2">
+                <path d="M296 86 340 48l44 38v48h-88zM314 134v-31h24v31M350 103h17" />
+                <path d="m294 335 34-34 16 16-34 34-12 17-11-11zM328 301l12-12 16 16-12 12M291 371l10 10" />
+                <path d="m305 790 14-14h68v62h-82zM319 776v-13h34v13M305 810h82M336 810v12h19v-12" />
+              </g>
+              <g fill="none" stroke="#65b7ad" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2">
+                <path d="m48 253 38-42 9 9-42 38-12 17-10-10zM81 219l15 15" />
+                <path d="m349 554 16-17 11 11-17 16 9 31-9 9-14-31-14-14 9-9zM349 554l-17-10-9 9 17 17" />
+                <path d="m65 737 8-8 22 22-8 8zM73 729l-8-8-7 7 8 8M87 751l-7 7 8 8 7-7M95 759l12 12a12 12 0 0 1-17 17l-12-12" />
+              </g>
+              <g fill="none" stroke="#c9b99a" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2">
+                <path d="m331 226 27-27 11 11-10 10 14 14-9 9-14-14-10 10zM358 199l10-10 14 14-10 10" />
+                <path d="m42 492 44-44M39 489l8 8M84 444l8 8M80 452l10 10M32 501l12-12" />
+                <path d="M337 680h42l10 12v30h-62v-30zM347 680v-11h22v11M327 702h62M350 704v10h16v-10" />
+              </g>
+            </svg>
+          </div>
           <label className="rota-searchbox">
             <span aria-hidden="true">⌕</span>
             <input
@@ -287,7 +327,12 @@ export default function HomePage() {
               }}
             >
               <div className="rota-artisan-top">
-                {artisan.avatar_url ? <img className="rota-avatar" src={artisan.avatar_url} alt="" /> : <span className="rota-avatar rota-avatar-initial">{artisan.full_name?.charAt(0) || 'U'}</span>}
+                <ArtisanAvatar
+                  src={resolveMediaUrl(artisan.avatar_url)}
+                  name={artisan.full_name}
+                  category={artisan.category}
+                  className="rota-avatar"
+                />
                 <div className="rota-artisan-name"><strong>{artisan.full_name}</strong><span>{categoryNameMap[artisan.category] || artisan.category} · {formatCityDistrict(artisan.city, artisan.district) || 'Konum belirtilmedi'}</span></div>
                 <span className={`rota-presence${artisan.is_available === false ? ' rota-presence-busy' : ''}`} title={artisan.is_available === false ? 'Meşgul' : 'Müsait'} />
               </div>
