@@ -29,8 +29,13 @@ const statements = [
      token_hash CHAR(64) NOT NULL UNIQUE,
      expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
      used_at TIMESTAMP WITH TIME ZONE,
+     last_attempt_at TIMESTAMP WITH TIME ZONE,
+     sent_at TIMESTAMP WITH TIME ZONE,
      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
    )`,
+  `ALTER TABLE email_verification_tokens
+     ADD COLUMN IF NOT EXISTS last_attempt_at TIMESTAMP WITH TIME ZONE,
+     ADD COLUMN IF NOT EXISTS sent_at TIMESTAMP WITH TIME ZONE`,
   `CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_user_created
      ON email_verification_tokens(user_id, created_at DESC)`,
 

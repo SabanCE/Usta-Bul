@@ -74,9 +74,15 @@ function VerifyEmailContent() {
       if (!response.ok) {
         throw new Error(body?.error?.message || 'E-posta gönderilemedi.');
       }
-      setMessage(
-        'Bu adres için doğrulama gerekiyorsa yeni bir bağlantı gönderildi. Gelen kutunuzu ve spam klasörünü kontrol edin.'
-      );
+      if (body?.data?.sent === true) {
+        setMessage(
+          'E-posta sunucumuz mesajı kabul etti. Teslimat birkaç dakika sürebilir; spam klasörünü de kontrol edin.'
+        );
+      } else {
+        setMessage(
+          'Şu anda yeni e-posta gönderilmedi. Adresin doğrulanmamış bir hesaba ait olduğundan emin olun; az önce denediyseniz 1 dakika sonra tekrar deneyin.'
+        );
+      }
     } catch (resendError) {
       setError(
         resendError instanceof Error

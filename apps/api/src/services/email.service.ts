@@ -9,9 +9,14 @@ const getTransporter = (): Transporter => {
   const port = Number(process.env.SMTP_PORT || 587);
 
   if (!user || !password) {
+    console.error('[Email] SMTP yapılandırması eksik:', {
+      SMTP_USER: Boolean(user),
+      SMTP_PASS: Boolean(password),
+    });
     throw new AppError('E-posta gönderimi yapılandırılmamış. Lütfen daha sonra tekrar deneyin.', 503);
   }
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    console.error('[Email] SMTP_PORT geçersiz.');
     throw new AppError('E-posta sunucusu yapılandırması geçersiz.', 503);
   }
 
@@ -53,7 +58,7 @@ export async function sendVerificationEmail(
   const safeUrl = escapeHtml(verificationUrl);
 
   try {
-    await mailTransport.sendMail({
+    const result = await mailTransport.sendMail({
       from: sender,
       to: email,
       subject: 'Usta Bul e-posta adresinizi doğrulayın',
@@ -73,10 +78,23 @@ export async function sendVerificationEmail(
   </body>
 </html>`,
     });
+
+    const accepted = (result.accepted ?? []).map(String);
+    if (!accepted.some((recipient) => recipient.toLowerCase() === email.toLowerCase())) {
+      throw new Error('SMTP sunucusu alıcı adresini kabul etmedi.');
+    }
+
+    console.info('[Email] SMTP doğrulama mesajını kabul etti:', {
+      recipientDomain: email.split('@')[1] || 'unknown',
+      messageId: result.messageId,
+    });
   } catch (error) {
     console.error(
       '[Email] Doğrulama e-postası gönderilemedi:',
-      error instanceof Error ? error.message : 'Bilinmeyen SMTP hatası'
+      error instanceof Error ? error.message : 'Bilinmeyen SMTP hatası',
+      error && typeof error === 'object' && 'code' in error
+        ? { code: (error as { code?: string }).code }
+        : undefined
     );
     throw new AppError('Doğrulama e-postası gönderilemedi. Lütfen biraz sonra tekrar deneyin.', 503);
   }

@@ -193,8 +193,9 @@ export class AuthService {
       }
 
       await client.query(
-        `INSERT INTO email_verification_tokens (user_id, token_hash, expires_at)
-         VALUES ($1, $2, $3)`,
+        `INSERT INTO email_verification_tokens
+           (user_id, token_hash, expires_at, last_attempt_at)
+         VALUES ($1, $2, $3, NOW())`,
         [newUser.id, verification.tokenHash, new Date(Date.now() + 24 * 60 * 60 * 1000)]
       );
 
@@ -206,6 +207,11 @@ export class AuthService {
           newUser.email,
           newUser.full_name,
           this.getVerificationUrl(verification.token)
+        );
+        await query(
+          `UPDATE email_verification_tokens SET sent_at = NOW()
+           WHERE token_hash = $1`,
+          [verification.tokenHash]
         );
       } catch (error) {
         emailSent = false;
@@ -315,6 +321,7 @@ export class AuthService {
         [normalizedEmail]
       );
       if (userResult.rows.length === 0 || userResult.rows[0].is_verified) {
+        console.info('[Auth] Verification resend skipped: account missing or already verified.');
         await client.query('COMMIT');
         return { sent: false };
       }
@@ -322,11 +329,12 @@ export class AuthService {
       const user = userResult.rows[0] as { id: string; email: string; full_name: string; is_verified: boolean };
       const recentToken = await client.query(
         `SELECT id FROM email_verification_tokens
-         WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 minute'
+         WHERE user_id = $1 AND last_attempt_at > NOW() - INTERVAL '1 minute'
          LIMIT 1`,
         [user.id]
       );
       if (recentToken.rows.length > 0) {
+        console.info('[Auth] Verification resend rate-limited.');
         await client.query('COMMIT');
         return { sent: false };
       }
@@ -338,8 +346,9 @@ export class AuthService {
         [user.id]
       );
       await client.query(
-        `INSERT INTO email_verification_tokens (user_id, token_hash, expires_at)
-         VALUES ($1, $2, $3)`,
+        `INSERT INTO email_verification_tokens
+           (user_id, token_hash, expires_at, last_attempt_at)
+         VALUES ($1, $2, $3, NOW())`,
         [user.id, verification.tokenHash, new Date(Date.now() + 24 * 60 * 60 * 1000)]
       );
       await client.query('COMMIT');
@@ -353,11 +362,24 @@ export class AuthService {
 
     if (!mailDetails) return { sent: false };
 
-    await sendVerificationEmail(
-      mailDetails.user.email,
-      mailDetails.user.full_name,
-      this.getVerificationUrl(mailDetails.verification.token)
-    );
+    try {
+      await sendVerificationEmail(
+        mailDetails.user.email,
+        mailDetails.user.full_name,
+        this.getVerificationUrl(mailDetails.verification.token)
+      );
+      await query(
+        `UPDATE email_verification_tokens SET sent_at = NOW()
+         WHERE token_hash = $1`,
+        [mailDetails.verification.tokenHash]
+      );
+    } catch (error) {
+      console.error(
+        '[Auth] Verification resend failed:',
+        error instanceof Error ? error.message : 'Unknown email error'
+      );
+      throw error;
+    }
     return { sent: true };
   }
 
