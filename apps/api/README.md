@@ -15,3 +15,16 @@ npm run dev
 npm run build
 npm start
 ```
+
+## E-posta doğrulaması
+
+Kayıt sırasında doğrulama e-postası göndermek için API ortamında aşağıdaki değişkenleri tanımlayın:
+
+- `SMTP_HOST=smtp.gmail.com`
+- `SMTP_PORT=587`
+- `SMTP_USER` — gönderen Gmail adresi
+- `SMTP_PASS` — Google Uygulama Şifresi (normal Gmail şifresi değil)
+- `SMTP_FROM` — ör. `Usta Bul <adres@gmail.com>`
+- `WEB_URL` — web uygulamasının kök adresi, ör. `https://usta-bul-kappa.vercel.app`
+
+Gmail hesabında 2 adımlı doğrulamayı açıp Uygulama Şifresi oluşturun. Şifreyi yalnızca API hosting’inin gizli ortam değişkenlerine girin; kaynak koda eklemeyin. E-posta doğrulama token’ları veritabanında hash olarak saklanır ve 24 saat sonra geçersiz olur. E-posta doğrulanmadan giriş yapılamaz. Usta profilleri ayrıca yönetici onayı gerektirir.

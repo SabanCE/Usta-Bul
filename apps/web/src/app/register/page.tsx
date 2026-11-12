@@ -3,7 +3,7 @@
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth, UserRole } from '../../context/AuthContext';
+import { UserRole } from '../../context/AuthContext';
 import LocationPicker, { DEFAULT_RADIUS_KM } from '../../components/LocationPicker';
 import { apiUrl } from '../../utils/api';
 
@@ -12,7 +12,6 @@ function RegisterForm() {
   const searchParams = useSearchParams();
   const initialRole = searchParams.get('role') === 'artisan' ? 'artisan' : 'customer';
 
-  const { login } = useAuth();
   const [role, setRole] = useState<UserRole>(initialRole);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -62,7 +61,10 @@ function RegisterForm() {
         throw new Error(data?.error?.message || 'Kayıt oluşturulamadı.');
       }
 
-      await login(email, password);
+      const emailSent = data?.data?.emailSent === true;
+      router.push(
+        `/verify-email?email=${encodeURIComponent(email.trim())}${emailSent ? '' : '&delivery=retry'}`
+      );
     } catch (err: any) {
       setErrorMsg(err?.message || 'Kayıt oluşturulamadı. Lütfen tekrar deneyin.');
     } finally {

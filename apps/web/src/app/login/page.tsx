@@ -43,7 +43,22 @@ export default function LoginPage() {
             Oturumunuz sonlandırıldı. Devam etmek için yeniden giriş yapın.
           </div>
         )}
-        {errorMsg && <div className="alert alert-error mb-2">{errorMsg}</div>}
+        {errorMsg && (
+          <div className="alert alert-error mb-2" role="alert">
+            {errorMsg}
+            {errorMsg.toLocaleLowerCase('tr').includes('e-posta adresinizi doğrulayın') && (
+              <>
+                {' '}
+                <Link
+                  href={`/verify-email?email=${encodeURIComponent(email.trim())}`}
+                  style={{ fontWeight: 700, textDecoration: 'underline' }}
+                >
+                  Doğrulama e-postasını yeniden gönder
+                </Link>
+              </>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="form-grid">
           <div className="field">

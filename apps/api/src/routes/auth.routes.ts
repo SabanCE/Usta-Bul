@@ -10,7 +10,7 @@ const router = Router();
  * /api/v1/auth/register:
  *   post:
  *     summary: Yeni Kullanıcı Kaydı (Müşteri veya Usta)
- *     description: Müşteri ve usta kayıtlarında konum pini, il ve ilçe bilgisi zorunludur. Usta kaydında hizmet kategorisi ve yarıçapı da iletilebilir.
+ *     description: Kayıt sonrası e-posta doğrulama bağlantısı gönderilir. E-posta doğrulanmadan giriş yapılamaz. Usta profili ayrıca yönetici onayı bekler.
  *     tags:
  *       - Kimlik Doğrulama (Auth)
  *     requestBody:
@@ -77,7 +77,7 @@ const router = Router();
  *                     type: string
  *     responses:
  *       201:
- *         description: Kullanıcı ve usta profili başarıyla oluşturuldu, token'lar üretildi.
+ *         description: Kullanıcı oluşturuldu ve e-posta doğrulaması başlatıldı.
  *       400:
  *         description: Eksik veya geçersiz parametre
  *       409:
@@ -89,7 +89,76 @@ router.post(
     const result = await authService.register(req.body);
     res.status(201).json({
       success: true,
-      message: 'Kayıt işlemi başarıyla tamamlandı.',
+      message: result.emailSent
+        ? 'Kayıt oluşturuldu. E-posta adresinizi doğrulamak için gelen kutunuzu kontrol edin.'
+        : 'Kayıt oluşturuldu ancak doğrulama e-postası gönderilemedi. Doğrulama sayfasından yeniden deneyin.',
+      data: result,
+    });
+  })
+);
+
+/**
+ * @openapi
+ * /api/v1/auth/verify-email:
+ *   post:
+ *     summary: E-posta adresini doğrula
+ *     tags:
+ *       - Kimlik Doğrulama (Auth)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [token]
+ *             properties:
+ *               token:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: E-posta adresi doğrulandı.
+ *       400:
+ *         description: Doğrulama bağlantısı geçersiz veya süresi dolmuş.
+ */
+router.post(
+  '/verify-email',
+  asyncHandler(async (req: Request, res: Response) => {
+    await authService.verifyEmail(req.body?.token);
+    res.json({
+      success: true,
+      message: 'E-posta adresiniz doğrulandı. Şimdi giriş yapabilirsiniz.',
+    });
+  })
+);
+
+/**
+ * @openapi
+ * /api/v1/auth/resend-verification:
+ *   post:
+ *     summary: E-posta doğrulama bağlantısını yeniden gönder
+ *     tags:
+ *       - Kimlik Doğrulama (Auth)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: E-posta adresi için gerekiyorsa doğrulama bağlantısı gönderildi.
+ */
+router.post(
+  '/resend-verification',
+  asyncHandler(async (req: Request, res: Response) => {
+    const result = await authService.resendVerificationEmail(req.body?.email);
+    res.json({
+      success: true,
+      message: 'Bu e-posta adresi için doğrulama gerekiyorsa yeni bir bağlantı gönderildi.',
       data: result,
     });
   })
