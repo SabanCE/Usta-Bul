@@ -11,9 +11,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [sessionEnded, setSessionEnded] = useState(false);
+  const [registrationComplete, setRegistrationComplete] = useState(false);
 
   useEffect(() => {
-    setSessionEnded(new URLSearchParams(window.location.search).get('session') === 'ended');
+    const searchParams = new URLSearchParams(window.location.search);
+    setSessionEnded(searchParams.get('session') === 'ended');
+    setRegistrationComplete(searchParams.get('registered') === '1');
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,6 +44,11 @@ export default function LoginPage() {
         {sessionEnded && (
           <div className="alert alert-warning mb-2">
             Oturumunuz sonlandırıldı. Devam etmek için yeniden giriş yapın.
+          </div>
+        )}
+        {registrationComplete && (
+          <div className="alert alert-success mb-2" role="status">
+            Hesabınız oluşturuldu. E-posta doğrulaması şimdilik gerekli değil; giriş yapabilirsiniz.
           </div>
         )}
         {errorMsg && (

@@ -61,10 +61,14 @@ function RegisterForm() {
         throw new Error(data?.error?.message || 'Kayıt oluşturulamadı.');
       }
 
-      const emailSent = data?.data?.emailSent === true;
-      router.push(
-        `/verify-email?email=${encodeURIComponent(email.trim())}${emailSent ? '' : '&delivery=retry'}`
-      );
+      if (data?.data?.emailVerificationRequired === true) {
+        const emailSent = data?.data?.emailSent === true;
+        router.push(
+          `/verify-email?email=${encodeURIComponent(email.trim())}${emailSent ? '' : '&delivery=retry'}`
+        );
+      } else {
+        router.push('/login?registered=1');
+      }
     } catch (err: any) {
       setErrorMsg(err?.message || 'Kayıt oluşturulamadı. Lütfen tekrar deneyin.');
     } finally {

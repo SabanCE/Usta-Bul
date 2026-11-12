@@ -132,7 +132,8 @@ export class AuthService {
 
       // 3. Şifre hashleme
       const passwordHash = await hashPassword(password);
-      const verification = createVerificationToken();
+      const emailVerificationRequired = process.env.EMAIL_VERIFICATION_REQUIRED === 'true';
+      const verification = emailVerificationRequired ? createVerificationToken() : null;
 
       // 4. Kullanıcıyı ekle
       const userResult = await client.query(
@@ -148,7 +149,7 @@ export class AuthService {
           fullName.trim(),
           normalizedPhone.phone,
           role,
-          false,
+          !emailVerificationRequired,
           role === 'customer' ? customerLocation!.city.trim() : null,
           role === 'customer' ? customerLocation!.district.trim() : null,
           role === 'customer' ? customerLocation!.latitude : null,
@@ -192,38 +193,43 @@ export class AuthService {
         );
       }
 
-      await client.query(
-        `INSERT INTO email_verification_tokens
-           (user_id, token_hash, expires_at, last_attempt_at)
-         VALUES ($1, $2, $3, NOW())`,
-        [newUser.id, verification.tokenHash, new Date(Date.now() + 24 * 60 * 60 * 1000)]
-      );
+      if (verification) {
+        await client.query(
+          `INSERT INTO email_verification_tokens
+             (user_id, token_hash, expires_at, last_attempt_at)
+           VALUES ($1, $2, $3, NOW())`,
+          [newUser.id, verification.tokenHash, new Date(Date.now() + 24 * 60 * 60 * 1000)]
+        );
+      }
 
       await client.query('COMMIT');
 
-      let emailSent = true;
-      try {
-        await sendVerificationEmail(
-          newUser.email,
-          newUser.full_name,
-          this.getVerificationUrl(verification.token)
-        );
-        await query(
-          `UPDATE email_verification_tokens SET sent_at = NOW()
-           WHERE token_hash = $1`,
-          [verification.tokenHash]
-        );
-      } catch (error) {
-        emailSent = false;
-        console.error(
-          '[Auth] Kayıt oluşturuldu ancak doğrulama e-postası gönderilemedi:',
-          error instanceof Error ? error.message : 'Bilinmeyen e-posta hatası'
-        );
+      let emailSent = false;
+      if (verification) {
+        emailSent = true;
+        try {
+          await sendVerificationEmail(
+            newUser.email,
+            newUser.full_name,
+            this.getVerificationUrl(verification.token)
+          );
+          await query(
+            `UPDATE email_verification_tokens SET sent_at = NOW()
+             WHERE token_hash = $1`,
+            [verification.tokenHash]
+          );
+        } catch (error) {
+          emailSent = false;
+          console.error(
+            '[Auth] Kayıt oluşturuldu ancak doğrulama e-postası gönderilemedi:',
+            error instanceof Error ? error.message : 'Bilinmeyen e-posta hatası'
+          );
+        }
       }
 
       return {
         email: newUser.email,
-        emailVerificationRequired: true,
+        emailVerificationRequired,
         emailSent,
       };
     } catch (err) {
@@ -406,7 +412,7 @@ export class AuthService {
     if (!isPasswordValid) {
       throw new UnauthorizedError('E-posta veya şifre hatalı.');
     }
-    if (!user.is_verified) {
+    if (process.env.EMAIL_VERIFICATION_REQUIRED === 'true' && !user.is_verified) {
       throw new UnauthorizedError('Giriş yapmadan önce e-posta adresinizi doğrulayın.');
     }
     if (user.deleted_at) {
@@ -505,7 +511,7 @@ export class AuthService {
         throw new UnauthorizedError('Kullanıcı hesabı bulunamadı.');
       }
       const user = userResult.rows[0];
-      if (!user.is_verified) {
+      if (process.env.EMAIL_VERIFICATION_REQUIRED === 'true' && !user.is_verified) {
         await client.query(
           `UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL`,
           [user.id]

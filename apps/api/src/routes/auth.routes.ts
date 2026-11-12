@@ -89,9 +89,11 @@ router.post(
     const result = await authService.register(req.body);
     res.status(201).json({
       success: true,
-      message: result.emailSent
-        ? 'Kayıt oluşturuldu. E-posta adresinizi doğrulamak için gelen kutunuzu kontrol edin.'
-        : 'Kayıt oluşturuldu ancak doğrulama e-postası gönderilemedi. Doğrulama sayfasından yeniden deneyin.',
+      message: !result.emailVerificationRequired
+        ? 'Kayıt oluşturuldu. Şimdi giriş yapabilirsiniz.'
+        : result.emailSent
+          ? 'Kayıt oluşturuldu. E-posta adresinizi doğrulamak için gelen kutunuzu kontrol edin.'
+          : 'Kayıt oluşturuldu ancak doğrulama e-postası gönderilemedi. Doğrulama sayfasından yeniden deneyin.',
       data: result,
     });
   })
