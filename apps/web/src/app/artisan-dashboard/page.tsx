@@ -104,6 +104,27 @@ export default function ArtisanDashboardPage() {
   const [submittingBid, setSubmittingBid] = useState(false);
   const [bidError, setBidError] = useState('');
 
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    if (tab === 'my_bids' || tab === 'completed') {
+      setActiveTab(tab);
+    }
+    const selectTab = (event: Event) => {
+      const nextTab = (event as CustomEvent<string>).detail;
+      if (nextTab === 'opportunities' || nextTab === 'my_bids' || nextTab === 'completed') {
+        setActiveTab(nextTab);
+      }
+    };
+    window.addEventListener('artisan-dashboard-tab-change', selectTab);
+    return () => window.removeEventListener('artisan-dashboard-tab-change', selectTab);
+  }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent('artisan-dashboard-tab-change', { detail: activeTab })
+    );
+  }, [activeTab]);
+
   const fetchData = async () => {
     setLoading(true);
     setErrorMsg('');
@@ -456,12 +477,16 @@ export default function ArtisanDashboardPage() {
       const list = document.querySelector('.rota-artisan-panel .rota-list');
       const card = document.getElementById(`rota-job-${selectedMapOpportunityId}`);
       if (!(list instanceof HTMLElement) || !(card instanceof HTMLElement)) return;
-      const listBounds = list.getBoundingClientRect();
+      const scrollContainer = window.matchMedia('(max-width: 640px)').matches
+        ? list.closest<HTMLElement>('.rota-artisan-panel')
+        : list;
+      if (!scrollContainer) return;
+      const listBounds = scrollContainer.getBoundingClientRect();
       const cardBounds = card.getBoundingClientRect();
       if (cardBounds.top < listBounds.top) {
-        list.scrollBy({ top: cardBounds.top - listBounds.top, behavior: 'smooth' });
+        scrollContainer.scrollBy({ top: cardBounds.top - listBounds.top, behavior: 'smooth' });
       } else if (cardBounds.bottom > listBounds.bottom) {
-        list.scrollBy({ top: cardBounds.bottom - listBounds.bottom, behavior: 'smooth' });
+        scrollContainer.scrollBy({ top: cardBounds.bottom - listBounds.bottom, behavior: 'smooth' });
       }
     }
   }, [selectedMapOpportunityId]);
@@ -591,7 +616,6 @@ export default function ArtisanDashboardPage() {
                       ) : (
                         <div className="rota-job-actions">
                           {typeof opportunity.latitude === 'number' && typeof opportunity.longitude === 'number' && <a className="rota-profile-link" href={googleMapsDirectionsUrl({ latitude: opportunity.latitude, longitude: opportunity.longitude }, artisanCenter)} target="_blank" rel="noreferrer">Yol tarifi ↗</a>}
-                          {selectedMapCanBid && <button type="button" className="rota-request-link" onClick={() => startMapBid(opportunity)}>{bid?.status === 'rejected' ? 'Yeniden teklif ver' : 'Teklif ver'} <span>↗</span></button>}
                         </div>
                       )}
                     </div>

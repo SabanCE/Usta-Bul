@@ -346,8 +346,11 @@
 
 .rota-list {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 10px 12px;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
   background-color: rgba(255, 255, 255, 0.26);
   background-image: radial-gradient(circle, rgba(57, 168, 155, 0.1) 1px, transparent 1.3px);
   background-position: 3px 4px;
@@ -1043,13 +1046,30 @@
 
   .navbar-rota .nav-links > .nav-link,
   .navbar-rota .nav-links > .nav-divider,
-  .navbar-rota .nav-user-name,
-  .navbar-rota .nav-avatar {
+  .navbar-rota .nav-user > .nav-avatar {
     display: none;
+  }
+
+  .navbar-rota .nav-links > .nav-customer-link {
+    display: inline-flex;
+  }
+
+  .navbar-rota .nav-links > .nav-artisan-link {
+    display: inline-flex;
   }
 
   .navbar-rota .nav-user {
     gap: 0;
+  }
+
+  .navbar-rota .nav-customer-link {
+    padding: 0.35rem 0.4rem;
+    font-size: 0.68rem;
+  }
+
+  .navbar-rota .nav-artisan-link {
+    padding: 0.35rem 0.4rem;
+    font-size: 0.68rem;
   }
 
   .rota-discovery {
@@ -1063,14 +1083,20 @@
     bottom: 0;
     left: 0;
     width: 100%;
-    height: min(36dvh, calc(100dvh - 204px), 640px);
+    height: min(58dvh, calc(100dvh - 204px), 640px);
     min-height: 220px;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
     border: 0;
     border-radius: 20px 20px 0 0;
     box-shadow: 0 -12px 40px rgba(23, 43, 58, 0.17);
   }
 
   .rota-panel-drag-handle {
+    position: sticky;
+    top: 0;
+    z-index: 3;
     display: grid;
     min-height: 22px;
     flex: 0 0 22px;
@@ -1152,6 +1178,8 @@
   }
 
   .rota-list {
+    flex: 0 0 auto;
+    overflow: visible;
     padding: 7px 9px;
   }
 
@@ -1163,7 +1191,7 @@
 
   .rota-map-hint {
     right: 12px;
-    bottom: calc(max(220px, min(36dvh, calc(100dvh - 204px), 640px)) + 10px);
+    bottom: calc(max(220px, min(58dvh, calc(100dvh - 204px), 640px)) + 10px);
     left: auto;
     padding: 7px 10px;
     font-size: 0.63rem;
@@ -1537,10 +1565,67 @@ img {
 }
 
 .nav-user-name {
+  display: flex;
+  flex-direction: column;
+  max-width: 150px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--ink);
   line-height: 1.1;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav-user-name > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-user-menu {
+  position: relative;
+}
+
+.nav-user-dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 100;
+  display: grid;
+  min-width: 180px;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.nav-user-dropdown a {
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.nav-user-dropdown a:hover {
+  background: var(--surface-muted);
+}
+
+.nav-user-dropdown button {
+  padding: 0.65rem 0.75rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.nav-user-dropdown button:hover {
+  background: var(--surface-muted);
 }
 
 .nav-user-role {
@@ -3444,9 +3529,18 @@ body {
   .nav-links .nav-link-keep {
     display: inline-flex;
   }
+
+  .nav-new-request {
+    display: none;
+  }
 }
 
 @media (max-width: 640px) {
+  .artisan-service-area,
+  .artisan-about-service-area {
+    display: none;
+  }
+
   .nav-container {
     gap: 0.5rem;
     padding-right: 0.75rem;
@@ -3463,14 +3557,43 @@ body {
     gap: 0.2rem;
   }
 
-  .nav-links > .nav-link-keep:first-child,
+  .nav-links > .nav-link-guest:first-child,
   .nav-links > .nav-divider {
     display: none;
   }
 
-  .nav-links > .nav-link-keep {
+  .nav-links > .nav-link-keep,
+  .nav-links > .nav-customer-link,
+  .nav-links > .nav-artisan-link {
     padding: 0.35rem 0.45rem;
     font-size: 0.72rem;
+  }
+
+  .navbar-rota .nav-user-name {
+    display: flex;
+    max-width: 54px;
+  }
+
+  .navbar-rota .nav-user-role {
+    display: none;
+  }
+
+  .navbar-rota .nav-user > .btn {
+    padding: 0.3rem 0.35rem;
+    font-size: 0.62rem;
+  }
+
+  .nav-user-name {
+    max-width: 76px;
+    font-size: 0.68rem;
+  }
+
+  .nav-user-role {
+    font-size: 0.6rem;
+  }
+
+  .nav-user {
+    gap: 0.25rem;
   }
 
   .nav-links > .btn {
@@ -3679,24 +3802,38 @@ body {
     background: var(--rota-paper);
   }
 
-  .rota-artisan-discovery > .rota-map-canvas {
-    display: none;
-  }
-
-  .rota-artisan-discovery > .rota-map-hint,
   .rota-artisan-discovery > .rota-floating-tabs {
     display: none;
   }
 
   .rota-artisan-discovery > .rota-artisan-panel {
-    position: relative;
-    inset: auto;
+    position: absolute;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
     width: 100%;
-    height: 100%;
-    min-height: 0;
+    height: min(58dvh, calc(100dvh - 204px), 640px);
+    min-height: 220px;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
     border: 0;
-    border-radius: 0;
-    box-shadow: none;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -12px 40px rgba(23, 43, 58, 0.17);
+  }
+
+  .rota-artisan-panel .rota-panel-drag-handle {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: grid;
+  }
+
+  .rota-artisan-discovery > .rota-map-hint {
+    right: 12px;
+    bottom: calc(max(220px, min(58dvh, calc(100dvh - 204px), 640px)) + 10px);
+    left: auto;
   }
 
   .rota-artisan-panel .rota-artisan-toolbar {

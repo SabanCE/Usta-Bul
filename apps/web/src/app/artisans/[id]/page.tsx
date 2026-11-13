@@ -135,6 +135,12 @@ export default function ArtisanProfilePage({ params }: { params: { id: string } 
   }
 
   const categoryLabel = categoryLabels[artisan.category] || artisan.category;
+  const artisanLocation = formatCityDistrict(artisan.city, artisan.district);
+  const serviceRadius = typeof artisan.service_radius_km === 'number' &&
+    Number.isFinite(artisan.service_radius_km) &&
+    artisan.service_radius_km > 0
+    ? artisan.service_radius_km
+    : null;
   // Teklif isteği yalnızca müşteriler (ve giriş yapmamış ziyaretçiler) tarafından
   // oluşturulabilir. Usta kendi profiline bakarken bu buton gösterilmez.
   const canRequestQuote = !user || user.role === 'customer';
@@ -168,9 +174,11 @@ export default function ArtisanProfilePage({ params }: { params: { id: string } 
               </div>
 
               <p className="page-subtitle" style={{ marginTop: 0 }}>
-                {formatCityDistrict(artisan.city, artisan.district)
-                  ? `${formatCityDistrict(artisan.city, artisan.district)} ve çevresinde hizmet veriyor.`
-                  : 'Konumuna göre yakınınızdaki işler için hizmet veriyor.'}
+                {serviceRadius
+                  ? `${artisanLocation ? `${artisanLocation} · ` : ''}${serviceRadius} km alanda hizmet veriyor.`
+                  : artisanLocation
+                    ? `${artisanLocation} ve çevresinde hizmet veriyor.`
+                    : 'Konumuna göre yakınınızdaki işler için hizmet veriyor.'}
               </p>
 
               <div className="flex flex-wrap mt-2" style={{ gap: '1.25rem' }}>
@@ -418,7 +426,7 @@ export default function ArtisanProfilePage({ params }: { params: { id: string } 
               </div>
             </div>
 
-            <div className="card">
+            <div className="card artisan-about-service-area">
               <div className="card-body">
                 <h3 className="section-title" style={{ marginBottom: '1rem' }}>Hizmet bölgesi</h3>
                 <p className="list-sub" style={{ marginBottom: '1rem' }}>

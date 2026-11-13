@@ -89,7 +89,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const redirectToDashboard = (role: UserRole) => {
     if (role === 'customer') {
-      router.push('/requests');
+      const isMobile = window.matchMedia('(max-width: 860px)').matches;
+      router.push(isMobile ? '/' : '/requests');
     } else if (role === 'artisan') {
       router.push('/artisan-dashboard');
     } else if (role === 'admin') {

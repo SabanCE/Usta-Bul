@@ -59,10 +59,15 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
 
+  const [artisanDashboardTab, setArtisanDashboardTab] = useState<
+    'opportunities' | 'my_bids' | 'completed'
+  >('opportunities');
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const notifRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const showNotificationsRef = useRef(showNotifications);
   const locallyReadIds = useRef(new Set<string>());
   const pendingReadIds = useRef(new Set<string>());
@@ -175,14 +180,43 @@ export default function Navbar() {
   };
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: PointerEvent) => {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowUserMenu(false);
+    };
+    document.addEventListener('pointerdown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
+
+  useEffect(() => {
+    setShowUserMenu(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    const syncDashboardTab = (event: Event) => {
+      const tab = (event as CustomEvent<string>).detail;
+      if (tab === 'opportunities' || tab === 'my_bids' || tab === 'completed') {
+        setArtisanDashboardTab(tab);
+      }
+    };
+    const queryTab = new URLSearchParams(window.location.search).get('tab');
+    setArtisanDashboardTab(
+      queryTab === 'my_bids' || queryTab === 'completed' ? queryTab : 'opportunities'
+    );
+    window.addEventListener('artisan-dashboard-tab-change', syncDashboardTab);
+    return () => window.removeEventListener('artisan-dashboard-tab-change', syncDashboardTab);
+  }, [pathname]);
 
   const isActive = (href: string) => pathname === href;
   const isMapRoute = pathname === '/' || pathname === '/artisan-dashboard';
@@ -190,7 +224,17 @@ export default function Navbar() {
   return (
     <header className={`navbar${isMapRoute ? ' navbar-rota' : ''}`}>
       <div className="container nav-container">
-        <Link href="/" className="logo">
+        <Link
+          href={user?.role === 'artisan' ? '/artisan-dashboard?tab=opportunities' : '/'}
+          className="logo"
+          onClick={() => {
+            if (user?.role === 'artisan') {
+              window.dispatchEvent(
+                new CustomEvent('artisan-dashboard-tab-change', { detail: 'opportunities' })
+              );
+            }
+          }}
+        >
           <span className="logo-mark">U</span>
           <span>Usta Bul</span>
         </Link>
@@ -198,7 +242,7 @@ export default function Navbar() {
         <nav className="nav-links">
           {!user && (
             <>
-              <Link href="/" className={`nav-link nav-link-keep ${isActive('/') ? 'nav-link-active' : ''}`}>
+              <Link href="/" className={`nav-link nav-link-keep nav-link-guest ${isActive('/') ? 'nav-link-active' : ''}`}>
                 Ustalar
               </Link>
               <Link href="/register?role=artisan" className="nav-link nav-link-keep">
@@ -213,11 +257,11 @@ export default function Navbar() {
 
           {user && user.role === 'customer' && (
             <>
-              <Link href="/" className={`nav-link ${isActive('/') ? 'nav-link-active' : ''}`}>
-                Ustalar
+              <Link href="/" className={`nav-link nav-link-keep nav-customer-link ${isActive('/') ? 'nav-link-active' : ''}`}>
+                Usta Ara
               </Link>
-              <Link href="/requests" className={`nav-link ${isActive('/requests') ? 'nav-link-active' : ''}`}>
-                Taleplerim
+              <Link href="/requests" className={`nav-link nav-link-keep nav-customer-link ${isActive('/requests') ? 'nav-link-active' : ''}`}>
+                Tekliflerim
               </Link>
               <Link href="/profile" className={`nav-link ${isActive('/profile') ? 'nav-link-active' : ''}`}>
                 Profilim
@@ -226,7 +270,7 @@ export default function Navbar() {
                 Destek ve yardım
               </Link>
               <span className="nav-divider" />
-              <Link href="/requests/new" className="btn btn-primary btn-sm">
+              <Link href="/requests/new" className="btn btn-primary btn-sm nav-new-request">
                 Yeni Talep
               </Link>
             </>
@@ -239,6 +283,17 @@ export default function Navbar() {
                 className={`nav-link ${isActive('/artisan-dashboard') ? 'nav-link-active' : ''}`}
               >
                 İş Paneli
+              </Link>
+              <Link
+                href="/artisan-dashboard?tab=my_bids"
+                className={`nav-link nav-link-keep nav-artisan-link ${artisanDashboardTab === 'my_bids' ? 'nav-link-active' : ''}`}
+                onClick={() => {
+                  window.dispatchEvent(
+                    new CustomEvent('artisan-dashboard-tab-change', { detail: 'my_bids' })
+                  );
+                }}
+              >
+                Tekliflerim
               </Link>
               <Link
                 href="/artisan-dashboard/profile"
@@ -329,13 +384,46 @@ export default function Navbar() {
                 className="nav-avatar"
                 showTradeIcon={user.role === 'artisan'}
               />
-              <div className="nav-user-name">
-                <div>{user.fullName}</div>
-                <div className="nav-user-role">{roleLabels[user.role]}</div>
+              <div className="nav-user-menu" ref={userMenuRef}>
+                <button
+                  type="button"
+                  className="nav-user-name"
+                  aria-haspopup="menu"
+                  aria-expanded={showUserMenu}
+                  onClick={() => setShowUserMenu((open) => !open)}
+                >
+                  <span>{user.fullName}</span>
+                  <span className="nav-user-role">{roleLabels[user.role]}</span>
+                </button>
+                {showUserMenu && (
+                  <div className="nav-user-dropdown" role="menu">
+                    <Link
+                      href={user.role === 'artisan' ? '/artisan-dashboard/profile' : '/profile'}
+                      role="menuitem"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      Profil ayarları
+                    </Link>
+                    <Link
+                      href="/support"
+                      role="menuitem"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      Destek ve yardım
+                    </Link>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        logout();
+                      }}
+                    >
+                      Çıkış yap
+                    </button>
+                  </div>
+                )}
               </div>
-              <button type="button" onClick={logout} className="btn btn-ghost btn-sm">
-                Çıkış
-              </button>
             </div>
           )}
         </nav>

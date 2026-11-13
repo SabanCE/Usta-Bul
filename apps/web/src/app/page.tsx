@@ -103,7 +103,6 @@ export default function HomePage() {
             active
           ) {
             setUserLocation({ lat: latitude, lng: longitude });
-            setRouteOrigin({ latitude, longitude });
             setSortBy('distance');
           }
         } catch (error: any) {

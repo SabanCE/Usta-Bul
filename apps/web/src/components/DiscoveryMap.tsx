@@ -123,7 +123,7 @@ export default function DiscoveryMap({
       markers.clearLayers();
       radiusRef.current?.remove();
       radiusRef.current = null;
-      const activeRouteOrigin = routeOrigin || center;
+      const activeRouteOrigin = routeOrigin;
 
       if (center && radiusKm) {
         radiusRef.current = L.circle([center.latitude, center.longitude], {
