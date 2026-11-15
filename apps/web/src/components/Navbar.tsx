@@ -220,9 +220,12 @@ export default function Navbar() {
 
   const isActive = (href: string) => pathname === href;
   const isMapRoute = pathname === '/' || pathname === '/artisan-dashboard';
+  const isHomeRoute = pathname === '/';
 
   return (
-    <header className={`navbar${isMapRoute ? ' navbar-rota' : ''}`}>
+    <header
+      className={`navbar${isMapRoute ? ' navbar-rota' : ''}${isHomeRoute ? ' navbar-home' : ''}${user ? ' navbar-has-notifications' : ''}`}
+    >
       <div className="container nav-container">
         <Link
           href={user?.role === 'artisan' ? '/artisan-dashboard?tab=opportunities' : '/'}
@@ -238,6 +241,12 @@ export default function Navbar() {
           <span className="logo-mark">U</span>
           <span>Usta Bul</span>
         </Link>
+
+        {isHomeRoute && (
+          <a className="home-location-pill" href="#home-search">
+            <span aria-hidden="true">⌖</span> Konum seç <span aria-hidden="true">⌄</span>
+          </a>
+        )}
 
         <nav className="nav-links">
           {!user && (
@@ -326,7 +335,7 @@ export default function Navbar() {
           )}
 
           {user && (
-            <div ref={notifRef} style={{ position: 'relative' }}>
+            <div ref={notifRef} className="nav-notifications" style={{ position: 'relative' }}>
               <button
                 type="button"
                 onClick={() => {

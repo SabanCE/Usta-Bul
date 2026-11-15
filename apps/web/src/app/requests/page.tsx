@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { apiUrl, getAuthHeaders } from '../../utils/api';
-import { formatLocation } from '../../utils/location';
+import { formatCityDistrict } from '../../utils/location';
 
 interface JobRequest {
   id: string;
@@ -71,24 +71,60 @@ export default function RequestsPage() {
   };
 
   const filtered = filterStatus === 'all' ? requests : requests.filter((r) => r.status === filterStatus);
+  const totalBids = requests.reduce((total, request) => total + (Number(request.bids_count) || 0), 0);
+  const activeRequests = requests.filter((request) => request.status === 'in_progress').length;
+  const completedRequests = requests.filter((request) => request.status === 'completed').length;
 
   return (
-    <div className="page">
-      <div className="container">
-        <div className="page-header">
-          <div>
-            <p className="eyebrow">Müşteri paneli</p>
-            <h1 className="page-title">Taleplerim ve teklifler</h1>
-            <p className="page-subtitle">
-              Açtığınız hizmet taleplerini takip edin, ustalardan gelen teklifleri değerlendirin.
-            </p>
+    <main className="customer-dashboard-page">
+      <div className="customer-dashboard-container">
+        <section className="customer-dashboard-hero" aria-labelledby="customer-dashboard-title">
+          <div className="customer-dashboard-copy">
+            <span className="customer-dashboard-kicker"><i /> MÜŞTERİ PANELİ</span>
+            <h1 id="customer-dashboard-title">Ev işlerinizi tek yerden <em>yönetin.</em></h1>
+            <p>Ustalardan gelen teklifleri karşılaştırın, işlerinizin durumunu kolayca takip edin.</p>
+            <Link href="/requests/new" className="customer-dashboard-cta">
+              Yeni talep oluştur <span aria-hidden="true">↗</span>
+            </Link>
           </div>
-          <Link href="/requests/new" className="btn btn-primary">
-            Yeni talep aç
-          </Link>
-        </div>
+          <div className="customer-dashboard-art" aria-hidden="true">
+            <span className="customer-dashboard-orbit customer-dashboard-orbit-one" />
+            <span className="customer-dashboard-orbit customer-dashboard-orbit-two" />
+            <div className="customer-dashboard-art-card">
+              <span className="customer-dashboard-art-icon">⌂</span>
+              <span className="customer-dashboard-art-lines"><i /><i /><i /></span>
+              <span className="customer-dashboard-art-check">✓</span>
+            </div>
+            <span className="customer-dashboard-art-caption">İşiniz güvende</span>
+          </div>
+        </section>
 
-        <div className="tabs mb-3">
+        <section className="customer-dashboard-metrics" aria-label="Talep özeti">
+          <article className="customer-metric-card">
+            <span className="customer-metric-icon customer-metric-blue" aria-hidden="true">▤</span>
+            <span><strong>{loading ? '—' : requests.length}</strong><small>Toplam talep</small></span>
+          </article>
+          <article className="customer-metric-card">
+            <span className="customer-metric-icon customer-metric-teal" aria-hidden="true">↗</span>
+            <span><strong>{loading ? '—' : totalBids}</strong><small>Gelen teklif</small></span>
+          </article>
+          <article className="customer-metric-card">
+            <span className="customer-metric-icon customer-metric-amber" aria-hidden="true">◷</span>
+            <span><strong>{loading ? '—' : activeRequests}</strong><small>Devam eden</small></span>
+          </article>
+          <article className="customer-metric-card">
+            <span className="customer-metric-icon customer-metric-green" aria-hidden="true">✓</span>
+            <span><strong>{loading ? '—' : completedRequests}</strong><small>Tamamlanan</small></span>
+          </article>
+        </section>
+
+        <div className="customer-request-heading">
+          <div>
+            <span className="customer-dashboard-section-kicker">TALEPLERİNİZ</span>
+            <h2>İşleriniz ve teklifler</h2>
+            <p>Her talebin güncel durumu ve teklifleri burada.</p>
+          </div>
+          <div className="customer-request-filters" aria-label="Talepleri duruma göre filtrele">
           {[
             { key: 'all', label: 'Tümü' },
             { key: 'pending', label: 'Teklif bekleyen' },
@@ -104,58 +140,67 @@ export default function RequestsPage() {
               {tab.label}
             </button>
           ))}
+          </div>
         </div>
 
-        {errorMsg && <div className="alert alert-error mb-3">{errorMsg}</div>}
+        {errorMsg && <div className="alert alert-error mb-3" role="alert">{errorMsg}</div>}
 
         {loading ? (
-          <div className="loading-text">Talepler yükleniyor...</div>
+          <div className="customer-request-empty">
+            <span className="customer-request-empty-icon" aria-hidden="true">⌁</span>
+            <strong>Talepleriniz hazırlanıyor</strong>
+            <p>Güncel işleriniz kısa süre içinde burada görünecek.</p>
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="empty-state">
-            <h3 className="empty-title">Bu durumda bir talebiniz yok</h3>
-            <p style={{ marginBottom: '1.25rem' }}>Evinizdeki arıza veya montaj işleri için ücretsiz talep oluşturabilirsiniz.</p>
-            <Link href="/requests/new" className="btn btn-primary">
-              Talep oluştur
+          <div className="customer-request-empty">
+            <span className="customer-request-empty-icon" aria-hidden="true">⌂</span>
+            <strong>Bu filtrede talep görünmüyor</strong>
+            <p>Eviniz için bir hizmet talebi açın, size uygun ustalardan teklif alın.</p>
+            <Link href="/requests/new" className="customer-dashboard-cta customer-dashboard-cta-light">
+              İlk talebinizi oluştur <span aria-hidden="true">↗</span>
             </Link>
           </div>
         ) : (
-          <div className="list">
+          <div className="customer-request-list">
             {filtered.map((req) => {
               const st = statusMap[req.status] || statusMap.pending;
               return (
-                <div key={req.id} className="list-item">
-                  {req.images && req.images.length > 0 && (
-                    <img src={req.images[0]} alt={req.title} className="list-thumb" />
-                  )}
-
-                  <div className="list-main">
-                    <div className="flex" style={{ marginBottom: '0.35rem' }}>
+                <article key={req.id} className="customer-request-card">
+                  <div className="customer-request-art" aria-hidden="true">
+                    <span>{req.category === 'electrician' ? '⌁' : req.category === 'plumber' ? '≈' : req.category === 'painter' ? '▧' : '⌂'}</span>
+                    <i />
+                  </div>
+                  <div className="customer-request-content">
+                    <div className="customer-request-meta">
                       <span className={`badge ${st.cls}`}>{st.label}</span>
                       {req.urgency === 'urgent' && <span className="badge badge-danger">Acil</span>}
-                      <span className="small muted">{formatDate(req.created_at)}</span>
+                      <span className="customer-request-date">{formatDate(req.created_at)}</span>
                     </div>
-                    <h3 className="list-title">{req.title}</h3>
-                    <p className="list-sub">
-                      {formatLocation(req.city, req.district, req.address) || 'Konum belirtilmedi'}
+                    <h3>{req.title}</h3>
+                    <p className="customer-request-location">
+                      <span aria-hidden="true">⌖</span>
+                      {formatCityDistrict(req.city, req.district)
+                        ? `${formatCityDistrict(req.city, req.district)} · Yaklaşık konum`
+                        : 'Konum belirtilmedi'}
                     </p>
-                    <p className="small muted" style={{ marginTop: '0.25rem', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                    <p className="customer-request-description">
                       {req.description}
                     </p>
+                    <div className="customer-request-footer">
+                      <span className="customer-request-bids">
+                        <strong>{req.bids_count}</strong> teklif
+                      </span>
+                      <Link href={`/requests/${req.id}`} className="customer-request-open">
+                        Teklifleri incele <span aria-hidden="true">→</span>
+                      </Link>
+                    </div>
                   </div>
-
-                  <div className="list-side">
-                    <div className="big-number">{req.bids_count}</div>
-                    <div className="big-number-label">usta teklifi</div>
-                    <Link href={`/requests/${req.id}`} className="btn btn-secondary btn-sm mt-2">
-                      Teklifleri gör
-                    </Link>
-                  </div>
-                </div>
+                </article>
               );
             })}
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }

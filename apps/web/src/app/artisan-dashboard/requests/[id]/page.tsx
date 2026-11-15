@@ -14,11 +14,12 @@ interface Opportunity {
   category: string;
   title: string;
   description: string;
-  address: string;
+  address: string | null;
   city: string | null;
   district: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  location_is_approximate?: boolean;
   urgency: string;
   created_at: string;
   images: string[];
@@ -224,8 +225,10 @@ export default function ArtisanRequestDetailPage() {
                   <strong>{request.customer_name || 'Müşteri'}</strong>
                 </div>
                 <div>
-                  <span className="small muted">Hizmet adresi</span>
-                  <strong>{formatLocation(request.city, request.district, request.address) || 'Belirtilmedi'}</strong>
+                  <span className="small muted">{request.location_is_approximate ? 'Yaklaşık konum' : 'Hizmet adresi'}</span>
+                  <strong>{request.location_is_approximate
+                    ? formatLocation(request.city, request.district) || 'Konum belirtilmedi'
+                    : formatLocation(request.city, request.district, request.address) || 'Belirtilmedi'}</strong>
                 </div>
                 {request.customer_phone && (
                   <div>
@@ -255,13 +258,16 @@ export default function ArtisanRequestDetailPage() {
 
               {artisanCenter && requestPoint && (
                 <section className="artisan-request-detail-section">
-                  <h2 className="section-title">İş konumu ve rota</h2>
+                  <h2 className="section-title">{request.location_is_approximate ? 'Yaklaşık iş konumu' : 'İş konumu ve rota'}</h2>
                   <RouteMapDemo
                     origin={artisanCenter}
                     destination={requestPoint}
                     originLabel="Hizmet konumunuz"
-                    destinationLabel="İş konumu"
+                    destinationLabel={request.location_is_approximate ? 'Yaklaşık iş konumu' : 'İş konumu'}
                   />
+                  {request.location_is_approximate && (
+                    <p className="small muted">Kesin adres, teklif kabul edildikten sonra paylaşılır.</p>
+                  )}
                 </section>
               )}
             </div>

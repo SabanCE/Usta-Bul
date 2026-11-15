@@ -267,7 +267,7 @@ export default function ArtisanProfilePage({ params }: { params: { id: string } 
                     Ustanın çalışma alanı
                   </h2>
                   <p className="page-subtitle">
-                    Haritadaki daire, ustanın hizmet verdiği yaklaşık {artisan.service_radius_km} km yarıçapı gösterir.
+                    Haritadaki nokta yaklaşık konumu, daire ise ustanın hizmet verdiği {artisan.service_radius_km} km yarıçapı gösterir. Kesin adres paylaşılmaz.
                   </p>
                 </div>
                 <LocationMap

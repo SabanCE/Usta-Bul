@@ -2,14 +2,22 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
+import Image, { StaticImageData } from 'next/image';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { DEFAULT_RADIUS_KM, RADIUS_OPTIONS } from '../components/LocationPicker';
 import { formatCityDistrict, formatDistanceKm } from '../utils/location';
 import { useAuth } from '../context/AuthContext';
 import { apiUrl, getAuthHeaders, resolveMediaUrl } from '../utils/api';
 import DiscoveryMap, { DiscoveryPoint } from '../components/DiscoveryMap';
-import DraggableMapPanel from '../components/DraggableMapPanel';
 import ArtisanAvatar from '../components/ArtisanAvatar';
+import applianceIcon from '../assets/trades/appliance.png';
+import carpenterIcon from '../assets/trades/carpenter.png';
+import electricianIcon from '../assets/trades/electrician.png';
+import locksmithIcon from '../assets/trades/locksmith.png';
+import painterIcon from '../assets/trades/painter.png';
+import plumberIcon from '../assets/trades/plumber.png';
+import renovationIcon from '../assets/trades/renovation.png';
+import tradespersonIcon from '../assets/trades/tradesperson.png';
 
 interface Artisan {
   id: string;
@@ -44,6 +52,16 @@ const CATEGORIES: Category[] = [
   { slug: 'appliance', name: 'Beyaz Eşya', description: 'Buzdolabı, çamaşır makinesi' },
   { slug: 'renovation', name: 'Tadilat', description: 'Banyo, mutfak ve ev yenileme' },
 ];
+
+const CATEGORY_ICONS: Record<string, StaticImageData> = {
+  plumber: plumberIcon,
+  electrician: electricianIcon,
+  painter: painterIcon,
+  carpenter: carpenterIcon,
+  locksmith: locksmithIcon,
+  appliance: applianceIcon,
+  renovation: renovationIcon,
+};
 
 export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -217,146 +235,284 @@ export default function HomePage() {
       selected: selectedArtisanId === artisan.id,
     }];
   }), [artisans, selectedArtisanId]);
-  useEffect(() => {
-    if (selectedArtisanId) {
-      const list = document.querySelector('.rota-discovery .rota-list');
-      const card = document.getElementById(`rota-artisan-${selectedArtisanId}`);
-      if (!(list instanceof HTMLElement) || !(card instanceof HTMLElement)) return;
-      const listBounds = list.getBoundingClientRect();
-      const cardBounds = card.getBoundingClientRect();
-      if (cardBounds.top < listBounds.top) {
-        list.scrollBy({ top: cardBounds.top - listBounds.top, behavior: 'smooth' });
-      } else if (cardBounds.bottom > listBounds.bottom) {
-        list.scrollBy({ top: cardBounds.bottom - listBounds.bottom, behavior: 'smooth' });
-      }
-    }
-  }, [selectedArtisanId]);
-
   return (
-    <div className="rota-discovery">
-      <DiscoveryMap
-        points={mapPoints}
-        center={mapCenter}
-        routeOrigin={routeOrigin}
-        radiusKm={userLocation ? radiusKm : undefined}
-        onSelect={handleSelectArtisan}
-        focusRequest={focusRequest}
-      />
-      <DraggableMapPanel className="rota-panel" ariaLabel="Usta arama">
-        <form className="rota-search" onSubmit={(event) => { event.preventDefault(); void fetchArtisans(); }}>
-          <div className="rota-panel-decor" aria-hidden="true">
-            <svg viewBox="0 0 440 900" preserveAspectRatio="xMaxYMin slice" focusable="false">
-              <g fill="none" stroke="#bfd24f" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2">
-                <path d="M296 86 340 48l44 38v48h-88zM314 134v-31h24v31M350 103h17" />
-                <path d="m294 335 34-34 16 16-34 34-12 17-11-11zM328 301l12-12 16 16-12 12M291 371l10 10" />
-                <path d="m305 790 14-14h68v62h-82zM319 776v-13h34v13M305 810h82M336 810v12h19v-12" />
-              </g>
-              <g fill="none" stroke="#65b7ad" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2">
-                <path d="m48 253 38-42 9 9-42 38-12 17-10-10zM81 219l15 15" />
-                <path d="m349 554 16-17 11 11-17 16 9 31-9 9-14-31-14-14 9-9zM349 554l-17-10-9 9 17 17" />
-                <path d="m65 737 8-8 22 22-8 8zM73 729l-8-8-7 7 8 8M87 751l-7 7 8 8 7-7M95 759l12 12a12 12 0 0 1-17 17l-12-12" />
-              </g>
-              <g fill="none" stroke="#c9b99a" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2">
-                <path d="m331 226 27-27 11 11-10 10 14 14-9 9-14-14-10 10zM358 199l10-10 14 14-10 10" />
-                <path d="m42 492 44-44M39 489l8 8M84 444l8 8M80 452l10 10M32 501l12-12" />
-                <path d="M337 680h42l10 12v30h-62v-30zM347 680v-11h22v11M327 702h62M350 704v10h16v-10" />
-              </g>
-            </svg>
+    <div className="home-page" id="home-top">
+      <div className="home-content">
+        <section className="home-hero" aria-labelledby="home-hero-title">
+          <div className="home-hero-copy">
+            <span className="home-hero-kicker"><span /> Ustalar yakınınızda</span>
+            <h1 id="home-hero-title">Güvenilir ustayı bulun, <em>işinizi kolayca halledin.</em></h1>
+            <p>İhtiyacınıza uygun profesyonelleri keşfedin, yorumları inceleyin ve hemen teklif isteyin.</p>
+            <div className="home-hero-points">
+              <span><i>✓</i> Gerçek müşteri yorumları</span>
+              <span><i>✓</i> Kolay usta karşılaştırma</span>
+            </div>
           </div>
-          <label className="rota-searchbox">
-            <span aria-hidden="true">⌕</span>
-            <input
-              type="search"
-              placeholder="Usta, hizmet veya uzmanlık ara"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-            />
+          <div className="home-hero-art" aria-hidden="true">
+            <span className="home-hero-art-ring" />
+            <Image src={tradespersonIcon} alt="" width={228} height={228} priority />
+            <span className="home-hero-art-caption">Usta Bul</span>
+          </div>
+        </section>
+
+        <form
+          id="home-search"
+          className="home-search"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void fetchArtisans();
+            document.getElementById('home-artisans')?.scrollIntoView({ behavior: 'smooth' });
+          }}
+        >
+          <label className="home-search-field home-query-field">
+            <span className="home-field-icon" aria-hidden="true">⌕</span>
+            <span className="home-field-copy">
+              <strong>Hizmet seçin</strong>
+              <input
+                type="search"
+                placeholder="Örn. elektrikçi, tesisatçı"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+            </span>
           </label>
-          <select id="categories" className="rota-select" value={selectedCategory} onChange={(event) => setSelectedCategory(event.target.value)} aria-label="Hizmet kategorisi">
-            <option value="">Tüm uzmanlıklar</option>
-            {CATEGORIES.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}
-          </select>
-          <div className="rota-filter-row">
-            <span>Arama alanı</span>
-            <select className="rota-radius" value={radiusKm} onChange={(event) => setRadiusKm(Number(event.target.value))} aria-label="Arama yarıçapı">
-              {RADIUS_OPTIONS.map((option) => <option key={option} value={option}>{option} km</option>)}
+          <label className="home-search-field">
+            <span className="home-field-icon" aria-hidden="true">⌖</span>
+            <span className="home-field-copy">
+              <strong>Hizmet kategorisi</strong>
+              <select
+                value={selectedCategory}
+                onChange={(event) => setSelectedCategory(event.target.value)}
+                aria-label="Hizmet kategorisi"
+              >
+                <option value="">Tüm kategoriler</option>
+                {CATEGORIES.map((category) => (
+                  <option key={category.slug} value={category.slug}>{category.name}</option>
+                ))}
+              </select>
+            </span>
+          </label>
+          <button
+            type="button"
+            className="home-location-button"
+            onClick={() => void handleDetectLocation()}
+            disabled={locationLoading}
+          >
+            <span aria-hidden="true">◎</span>
+            {locationLoading ? 'Konum alınıyor…' : userLocation ? 'Konumum seçildi' : 'Konumumu bul'}
+          </button>
+          <button type="submit" className="home-search-submit" disabled={loading}>
+            <span aria-hidden="true">⌕</span> {loading ? 'Aranıyor…' : 'Usta Bul'}
+          </button>
+        </form>
+        {(locationError || errorMsg) && (
+          <p className="home-error" role={errorMsg ? 'alert' : 'status'}>{errorMsg || locationError}</p>
+        )}
+
+        <section className="home-shortcuts" aria-label="Hızlı işlemler">
+          <Link href="/register?role=artisan" className="home-shortcut home-shortcut-artisan">
+            <span className="home-shortcut-icon" aria-hidden="true">♙</span>
+            <span><strong>Usta Ol</strong><small>İşlerini artır, yeni müşterilere ulaş</small></span>
+            <span className="home-shortcut-arrow" aria-hidden="true">›</span>
+          </Link>
+          <Link href="/requests/new" className="home-shortcut home-shortcut-request">
+            <span className="home-shortcut-icon" aria-hidden="true">▤</span>
+            <span><strong>Hizmet Talebi Oluştur</strong><small>İhtiyacını yaz, ustalardan teklif al</small></span>
+            <span className="home-shortcut-arrow" aria-hidden="true">›</span>
+          </Link>
+        </section>
+
+        <section className="home-section home-categories" aria-labelledby="home-categories-title">
+          <div className="home-section-heading">
+            <div>
+              <span className="home-eyebrow">İhtiyacınız için</span>
+              <h2 id="home-categories-title">Popüler hizmet kategorileri</h2>
+            </div>
+            <a href="#home-search" className="home-text-link">Tüm kategoriler <span aria-hidden="true">›</span></a>
+          </div>
+          <div className="home-category-grid">
+            {CATEGORIES.map((category) => (
+              <button
+                type="button"
+                key={category.slug}
+                className={`home-category${selectedCategory === category.slug ? ' home-category-active' : ''}`}
+                onClick={() => {
+                  setSelectedCategory(category.slug);
+                  document.getElementById('home-artisans')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                aria-pressed={selectedCategory === category.slug}
+              >
+                <Image src={CATEGORY_ICONS[category.slug]} alt="" width={42} height={42} />
+                <span>{category.name}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="home-benefits" aria-label="Usta Bul avantajları">
+          <strong className="home-benefits-title">Neden<br />Usta Bul?</strong>
+          <div><span className="home-benefit-icon">✓</span><strong>Kolay<br />karşılaştırma</strong></div>
+          <div><span className="home-benefit-icon">♢</span><strong>Güvenli<br />iş süreci</strong></div>
+          <div><span className="home-benefit-icon">★</span><strong>Gerçek<br />yorumlar</strong></div>
+          <div><span className="home-benefit-icon">ϟ</span><strong>Hızlı<br />teklif</strong></div>
+        </section>
+
+        <section className="home-section home-artisans-section" id="home-artisans" aria-labelledby="home-artisans-title">
+          <div className="home-section-heading">
+            <div>
+              <span className="home-eyebrow">Size yardımcı olmaya hazırlar</span>
+              <h2 id="home-artisans-title">Öne çıkan ustalar</h2>
+            </div>
+            <a href="#home-map" className="home-text-link">Haritada gör <span aria-hidden="true">›</span></a>
+          </div>
+          <div className="home-sort-row">
+            <span>{loading ? 'Ustalar yükleniyor…' : `${artisans.length} usta bulundu`}</span>
+            <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} aria-label="Ustaları sırala">
+              <option value="rating">En yüksek puan</option>
+              {userLocation && <option value="distance">En yakın</option>}
+              <option value="price_asc">Fiyat artan</option>
+              <option value="price_desc">Fiyat azalan</option>
             </select>
           </div>
-          <div className="rota-panel-actions">
-            <button type="button" onClick={() => void handleDetectLocation()} className="rota-location-button" disabled={locationLoading}>
-              <span>◎</span>{locationLoading ? 'Konum alınıyor…' : userLocation ? 'Konumu güncelle' : 'Konumumu bul'}
-            </button>
-            <button type="submit" className="rota-search-button" disabled={loading}>{loading ? 'Aranıyor…' : 'Haritada bul'} <span>↗</span></button>
-          </div>
-          {locationError && <p className="rota-inline-error" role="status">{locationError}</p>}
-          {errorMsg && <p className="rota-inline-error" role="alert">{errorMsg}</p>}
-        </form>
-
-        <div className="rota-results-head">
-          <div><strong>{loading ? '…' : artisans.length}</strong><span> usta eşleşti</span></div>
-          <select className="rota-sort" value={sortBy} onChange={(event) => setSortBy(event.target.value)} aria-label="Ustaları sırala">
-            <option value="rating">En yüksek puan</option>
-            {userLocation && <option value="distance">En yakın</option>}
-            <option value="price_asc">Fiyat artan</option>
-            <option value="price_desc">Fiyat azalan</option>
-          </select>
-        </div>
-
-        <div className="rota-list" aria-label="Haritadaki ustalar">
-          {loading ? <div className="rota-empty">Yakınınızdaki ustalar bulunuyor…</div> : artisans.length === 0 ? (
-            <div className="rota-empty">
-              <span className="rota-empty-icon">⌖</span>
-              <strong>{user?.role === 'customer' && !userLocation ? 'Önce konumunuzu seçin' : 'Burada henüz usta yok'}</strong>
-              <span>Haritada ustaları görmek ve eşleşme bulmak için konumunuzu kullanın veya filtreleri değiştirin.</span>
-            </div>
-          ) : artisans.map((artisan) => (
-            <article
-              key={artisan.id}
-              id={`rota-artisan-${artisan.id}`}
-              className={`rota-artisan${selectedArtisanId === artisan.id ? ' rota-artisan-active' : ''}`}
-              tabIndex={0}
-              aria-label={`${artisan.full_name}, ${categoryNameMap[artisan.category] || artisan.category}`}
-              onClick={() => handleSelectArtisan(artisan.id)}
-              onKeyDown={(event) => {
-                if (event.target !== event.currentTarget) return;
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  handleSelectArtisan(artisan.id);
-                }
-              }}
-            >
-              <div className="rota-artisan-top">
-                <ArtisanAvatar
-                  src={resolveMediaUrl(artisan.avatar_url)}
-                  name={artisan.full_name}
-                  category={artisan.category}
-                  className="rota-avatar"
-                />
-                <div className="rota-artisan-name"><strong>{artisan.full_name}</strong><span>{categoryNameMap[artisan.category] || artisan.category} · {formatCityDistrict(artisan.city, artisan.district) || 'Konum belirtilmedi'}</span></div>
-                <span className={`rota-presence${artisan.is_available === false ? ' rota-presence-busy' : ''}`} title={artisan.is_available === false ? 'Meşgul' : 'Müsait'} />
-              </div>
-              <div className="rota-artisan-meta">
-                <span><b>★ {Number(artisan.rating || 0).toFixed(1)}</b> <i>({artisan.total_reviews || 0})</i></span>
-                {artisan.distance_km !== undefined && Number.isFinite(Number(artisan.distance_km)) && <span>{formatDistanceKm(Number(artisan.distance_km))}</span>}
-                <span>{artisan.hourly_rate ? `₺${artisan.hourly_rate}/saat` : 'Fiyat için iletişime geçin'}</span>
-              </div>
-              {selectedArtisanId === artisan.id && (
-                <div className="rota-artisan-actions">
-                  <Link href={`/artisans/${artisan.id}`} className="rota-profile-link" onClick={(event) => event.stopPropagation()}>Profili incele</Link>
-                  <Link href={user?.role === 'artisan' ? '/login' : `/requests/new?category=${encodeURIComponent(artisan.category)}&targetArtisanId=${encodeURIComponent(artisan.id)}`} className="rota-request-link" onClick={(event) => event.stopPropagation()}>
-                    {user?.role === 'artisan' ? 'Müşteri hesabıyla devam et' : 'Bu ustadan teklif iste'} <span>↗</span>
-                  </Link>
-                </div>
+          {loading ? (
+            <div className="home-empty">Yakınınızdaki ustalar bulunuyor…</div>
+          ) : artisans.length === 0 ? (
+            <div className="home-empty">
+              <strong>{user?.role === 'customer' && !userLocation ? 'Önce konumunuzu seçin' : 'Henüz usta bulunamadı'}</strong>
+              <span>{errorMsg || 'Kategoriyi değiştirin veya konumunuzu seçerek yakınınızdaki ustaları keşfedin.'}</span>
+              {!userLocation && (
+                <button type="button" onClick={() => void handleDetectLocation()} disabled={locationLoading}>
+                  {locationLoading ? 'Konum alınıyor…' : 'Konumumu bul'}
+                </button>
               )}
-            </article>
-          ))}
-        </div>
-        <div className="rota-panel-foot">
-          <span><i className="rota-legend-dot" /> Haritada konumu görünen ustalar</span>
-          <Link href="/requests/new">Talep oluştur <span>↗</span></Link>
-        </div>
-      </DraggableMapPanel>
-      <div className="rota-map-hint"><span className="rota-user-legend" />{userLocation ? `Arama merkezi · ${radiusKm} km` : 'İşaret seçerek ustaları keşfedin'}</div>
+            </div>
+          ) : (
+            <div className="home-artisan-grid">
+              {artisans.slice(0, 6).map((artisan) => (
+                <article
+                  key={artisan.id}
+                  id={`rota-artisan-${artisan.id}`}
+                  className={`home-artisan-card${selectedArtisanId === artisan.id ? ' home-artisan-card-active' : ''}`}
+                  tabIndex={0}
+                  onClick={() => handleSelectArtisan(artisan.id)}
+                  onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return;
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      handleSelectArtisan(artisan.id);
+                    }
+                  }}
+                  aria-label={`${artisan.full_name}, ${categoryNameMap[artisan.category] || artisan.category}`}
+                >
+                  <div className="home-artisan-card-top">
+                    <ArtisanAvatar
+                      src={resolveMediaUrl(artisan.avatar_url)}
+                      name={artisan.full_name}
+                      category={artisan.category}
+                      className="home-artisan-avatar"
+                    />
+                    <span className={`home-availability${artisan.is_available === false ? ' home-availability-busy' : ''}`}>
+                      {artisan.is_available === false ? 'Meşgul' : 'Müsait'}
+                    </span>
+                    <button
+                      type="button"
+                      className="home-map-pin"
+                      aria-label={`${artisan.full_name} ustasını haritada göster`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleSelectArtisan(artisan.id);
+                        document.getElementById('home-map')?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                    >
+                      ↗
+                    </button>
+                  </div>
+                  <h3>{artisan.full_name}</h3>
+                  <p className="home-artisan-category">{categoryNameMap[artisan.category] || artisan.category}</p>
+                  <p className="home-artisan-location">
+                    <span aria-hidden="true">⌖</span> {formatCityDistrict(artisan.city, artisan.district) || 'Konum belirtilmedi'} · Yaklaşık konum
+                  </p>
+                  <div className="home-artisan-rating">
+                    <strong>★ {Number(artisan.rating || 0).toFixed(1)}</strong>
+                    <span>({artisan.total_reviews || 0} yorum)</span>
+                    {artisan.distance_km !== undefined && Number.isFinite(Number(artisan.distance_km)) && (
+                      <span className="home-artisan-distance">~{formatDistanceKm(Number(artisan.distance_km))}</span>
+                    )}
+                  </div>
+                  <div className="home-artisan-actions">
+                    <Link
+                      href={`/artisans/${artisan.id}`}
+                      onClick={(event) => event.stopPropagation()}
+                      className="home-artisan-profile"
+                    >
+                      Profili incele
+                    </Link>
+                    <Link
+                      href={user?.role === 'artisan' ? '/login' : `/requests/new?category=${encodeURIComponent(artisan.category)}&targetArtisanId=${encodeURIComponent(artisan.id)}`}
+                      onClick={(event) => event.stopPropagation()}
+                      className="home-artisan-request"
+                    >
+                      Teklif iste
+                    </Link>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="home-map-section" id="home-map" aria-labelledby="home-map-title">
+          <div className="home-section-heading">
+            <div>
+              <span className="home-eyebrow">Çevrenizi keşfedin</span>
+              <h2 id="home-map-title">Haritada usta bul</h2>
+              <p className="small muted">Harita işaretleri ustaların yaklaşık konumunu gösterir.</p>
+            </div>
+            <button
+              type="button"
+              className="home-map-location"
+              onClick={() => void handleDetectLocation()}
+              disabled={locationLoading}
+            >
+              ◎ {locationLoading ? 'Konum alınıyor…' : 'Konumumu kullan'}
+            </button>
+          </div>
+          <div className="home-map-frame">
+            <DiscoveryMap
+              points={mapPoints}
+              center={mapCenter}
+              routeOrigin={routeOrigin}
+              radiusKm={userLocation ? radiusKm : undefined}
+              onSelect={handleSelectArtisan}
+              focusRequest={focusRequest}
+            />
+          </div>
+          <label className="home-radius-control">
+            Arama yarıçapı
+            <select value={radiusKm} onChange={(event) => setRadiusKm(Number(event.target.value))} aria-label="Arama yarıçapı">
+              {RADIUS_OPTIONS.map((option) => <option key={option} value={option}>{option} km</option>)}
+            </select>
+          </label>
+        </section>
+      </div>
+
+      <nav className="home-bottom-nav" aria-label="Alt gezinme">
+        <a href="#home-top" className="home-bottom-link home-bottom-active">
+          <span aria-hidden="true">⌂</span><small>Ana Sayfa</small>
+        </a>
+        <a href="#home-search" className="home-bottom-link">
+          <span aria-hidden="true">⌕</span><small>Usta Bul</small>
+        </a>
+        <Link href="/requests/new" className="home-bottom-link home-bottom-create">
+          <span aria-hidden="true">＋</span><small>Talep Oluştur</small>
+        </Link>
+        <Link href={user?.role === 'artisan' ? '/artisan-dashboard' : '/requests'} className="home-bottom-link">
+          <span aria-hidden="true">▣</span><small>İşlerim</small>
+        </Link>
+        <Link href={user ? (user.role === 'artisan' ? '/artisan-dashboard/profile' : '/profile') : '/login'} className="home-bottom-link">
+          <span aria-hidden="true">♙</span><small>Hesabım</small>
+        </Link>
+      </nav>
     </div>
   );
 }

@@ -1,16 +1,44 @@
 'use client';
 
 import React, { ReactNode, useEffect, useState } from 'react';
+import Image from 'next/image';
+import applianceIcon from '../assets/trades/appliance.png';
+import carpenterIcon from '../assets/trades/carpenter.png';
+import electricianIcon from '../assets/trades/electrician.png';
+import locksmithIcon from '../assets/trades/locksmith.png';
+import painterIcon from '../assets/trades/painter.png';
+import plumberIcon from '../assets/trades/plumber.png';
+import renovationIcon from '../assets/trades/renovation.png';
 import { apiUrl } from '../utils/api';
+
+const WELCOME_SEEN_KEY = 'usta-bul-welcome-seen';
 
 interface ApiStartupGateProps {
   children: ReactNode;
 }
 
+const categories = [
+  { label: 'Tesisat', image: plumberIcon },
+  { label: 'Elektrik', image: electricianIcon },
+  { label: 'Boya', image: painterIcon },
+  { label: 'Marangoz', image: carpenterIcon },
+  { label: 'Çilingir', image: locksmithIcon },
+  { label: 'Beyaz eşya', image: applianceIcon },
+  { label: 'Tadilat', image: renovationIcon },
+];
+
+const guideSteps = [
+  { title: 'Kategorini seç', text: 'İhtiyacına uygun hizmeti bul.' },
+  { title: 'İşini anlat', text: 'Talebini birkaç adımda oluştur.' },
+  { title: 'Teklifleri karşılaştır', text: 'Sana uygun ustayla anlaş.' },
+];
+
 export default function ApiStartupGate({ children }: ApiStartupGateProps) {
   const [isReady, setIsReady] = useState(false);
   const [showRetry, setShowRetry] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [activeGuideStep, setActiveGuideStep] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -30,6 +58,7 @@ export default function ApiStartupGate({ children }: ApiStartupGateProps) {
         if (response.ok) {
           const health = await response.json();
           if (health?.status === 'ok' && active) {
+            setShowWelcome(window.localStorage.getItem(WELCOME_SEEN_KEY) !== 'true');
             setIsReady(true);
             return;
           }
@@ -61,50 +90,124 @@ export default function ApiStartupGate({ children }: ApiStartupGateProps) {
     return () => clearTimeout(timer);
   }, [isReady, retryKey]);
 
-  if (isReady) return <>{children}</>;
+  useEffect(() => {
+    if (isReady && !showWelcome) return;
+    const timer = setInterval(() => {
+      setActiveGuideStep((step) => (step + 1) % guideSteps.length);
+    }, 2400);
+    return () => clearInterval(timer);
+  }, [isReady, showWelcome]);
+
+  if (isReady && !showWelcome) return <>{children}</>;
 
   return (
-    <div className="startup-splash" role="status" aria-live="polite">
+    <div className="startup-splash">
       <div className="startup-splash-orb startup-splash-orb-one" aria-hidden="true" />
       <div className="startup-splash-orb startup-splash-orb-two" aria-hidden="true" />
-      <div className="startup-splash-content">
-        <div className="startup-logo" aria-label="Usta Bul">
-          <div className="startup-logo-mark" aria-hidden="true">
-            <span>U</span>
-            <i />
+      <main className="startup-splash-content">
+        <header className="startup-splash-header">
+          <div className="startup-logo" aria-label="Usta Bul">
+            <div className="startup-logo-mark" aria-hidden="true">
+              <span>U</span>
+              <i />
+            </div>
+            <span className="startup-logo-name">Usta Bul</span>
           </div>
-          <span className="startup-logo-name">Usta Bul</span>
-        </div>
+          <div
+            className={`startup-connection${isReady ? ' is-ready' : ''}`}
+            role="status"
+            aria-live="polite"
+          >
+            <span />
+            {isReady ? 'Sunucu hazır' : 'Sunucu başlatılıyor…'}
+          </div>
+        </header>
 
-        <div className="startup-animation" aria-hidden="true">
-          <span className="startup-animation-ring" />
-          <span className="startup-animation-dot startup-animation-dot-one" />
-          <span className="startup-animation-dot startup-animation-dot-two" />
-          <span className="startup-animation-dot startup-animation-dot-three" />
-          <span className="startup-animation-center">U</span>
-        </div>
+        <section className="startup-splash-hero" aria-labelledby="startup-title">
+          <div className="startup-splash-copy">
+            <span className="startup-splash-kicker">GÜVENİLİR USTA, KOLAY HİZMET</span>
+            <h1 id="startup-title">
+              Ev işleriniz için <em>doğru usta</em> bir adım yakınınızda.
+            </h1>
+            <p>
+              İhtiyacınızı seçin, talebinizi oluşturun ve size uygun teklifleri kolayca karşılaştırın.
+            </p>
+          </div>
+          <div className="startup-category-grid" aria-label="Hizmet kategorileri">
+            {categories.map((category) => (
+              <div className="startup-category-card" key={category.label}>
+                <Image
+                  src={category.image}
+                  alt=""
+                  width={42}
+                  height={42}
+                  priority={category.label === 'Tesisat'}
+                />
+                <span>{category.label}</span>
+              </div>
+            ))}
+          </div>
+        </section>
 
-        <h1 className="startup-title">Birazdan buradayız</h1>
-        <p className="startup-message">
-          Sunucu başlatılıyor, bu işlem ilk açılışta biraz sürebilir…
-        </p>
-        <div className="startup-progress" aria-hidden="true">
-          <span />
-        </div>
-        <p className="startup-caption">Usta Bul sizin için hazırlanıyor</p>
+        <section className="startup-guide" aria-label="Usta Bul kullanım rehberi">
+          <div className="startup-guide-heading">
+            <span className="startup-splash-kicker">3 KOLAY ADIM</span>
+            <h2>Nasıl çalışır?</h2>
+          </div>
+          <div className="startup-guide-steps">
+            {guideSteps.map((step, index) => (
+              <article
+                className={`startup-guide-step${activeGuideStep === index ? ' is-active' : ''}`}
+                key={step.title}
+              >
+                <span className="startup-guide-number">{index + 1}</span>
+                <div>
+                  <strong>{step.title}</strong>
+                  <p>{step.text}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <footer className="startup-splash-bottom">
+          <div className="startup-progress" aria-hidden="true">
+            <span />
+          </div>
+          <p className="startup-caption">
+            {isReady
+              ? 'Usta Bul hazır. Hemen keşfetmeye başlayın.'
+              : 'İlk açılışta sunucunun hazırlanması birkaç saniye sürebilir.'}
+          </p>
+          {isReady && showWelcome && (
+            <button
+              type="button"
+              className="startup-start-button"
+              onClick={() => {
+                window.localStorage.setItem(WELCOME_SEEN_KEY, 'true');
+                setShowWelcome(false);
+              }}
+            >
+              Hadi başlayalım <span aria-hidden="true">→</span>
+            </button>
+          )}
+        </footer>
 
         {showRetry && (
           <div className="startup-retry">
-            <p>Bağlantı henüz kurulamadı. Sunucuya yeniden bağlanmayı deneyebilirsiniz.</p>
-            <button type="button" onClick={() => {
-              setShowRetry(false);
-              setRetryKey((current) => current + 1);
-            }}>
+            <p>Bağlantı henüz kurulamadı. Biraz bekleyin veya sunucuya yeniden bağlanın.</p>
+            <button
+              type="button"
+              onClick={() => {
+                setShowRetry(false);
+                setRetryKey((current) => current + 1);
+              }}
+            >
               Tekrar dene
             </button>
           </div>
         )}
-      </div>
+      </main>
       <div className="startup-splash-footer" aria-hidden="true">
         <span>U</span> USTALAR YAKININIZDA
       </div>

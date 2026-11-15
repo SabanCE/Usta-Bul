@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../context/AuthContext';
 import {
+  formatCityDistrict,
   formatDistanceKm,
   formatLocation,
   googleMapsDirectionsUrl,
@@ -22,11 +23,12 @@ interface Opportunity {
   category: string;
   title: string;
   description: string;
-  address: string;
+  address: string | null;
   city: string | null;
   district: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  location_is_approximate?: boolean;
   urgency: string;
   created_at: string;
   images: string[];
@@ -49,6 +51,7 @@ interface ArtisanBid {
   request_district: string | null;
   request_latitude?: number | null;
   request_longitude?: number | null;
+  request_location_is_approximate?: boolean;
   request_status: string;
   request_urgency: string;
   request_created_at?: string | null;
@@ -437,7 +440,7 @@ export default function ArtisanDashboardPage() {
 
   const selectedOpportunityDistance =
     artisanCenter && selectedOpportunityPoint
-      ? haversineDistanceKm(artisanCenter, selectedOpportunityPoint)
+      ? Math.max(1, Math.round(haversineDistanceKm(artisanCenter, selectedOpportunityPoint)))
       : null;
 
   const selectedOpportunityBid = selectedOpportunity
@@ -516,6 +519,25 @@ export default function ArtisanDashboardPage() {
           focusRequest={mapFocusRequest}
         />
         <DraggableMapPanel className="rota-panel rota-artisan-panel" ariaLabel="İş fırsatları">
+          <section className="rota-artisan-welcome" aria-label="Usta paneli özeti">
+            <div className="rota-artisan-welcome-main">
+              <div>
+                <span className="rota-artisan-welcome-kicker"><i /> USTA BUL · USTA PANELİ</span>
+                <h1>Yeni işler <em>seni bekliyor.</em></h1>
+                <p>Uzmanlığına uygun talepleri haritada keşfet, müşteriye hızlıca teklif ver.</p>
+              </div>
+              <div className="rota-artisan-welcome-art" aria-hidden="true">
+                <span className="rota-artisan-welcome-orbit" />
+                <span className="rota-artisan-welcome-tool">⌖</span>
+                <span className="rota-artisan-welcome-spark">✦</span>
+              </div>
+            </div>
+            <div className="rota-artisan-welcome-stats">
+              <span><strong>{loading ? '—' : opportunities.length}</strong> yeni fırsat</span>
+              <span><strong>{loading ? '—' : activeBids.length}</strong> aktif teklif</span>
+              <span><strong>{artisanProfile?.rating ? Number(artisanProfile.rating).toFixed(1) : '—'}</strong> puan</span>
+            </div>
+          </section>
           <div className="rota-panel-actions rota-artisan-toolbar">
             <button type="button" className={`rota-location-button${isAvailable ? '' : ' rota-busy-button'}`} onClick={() => void toggleAvailability()} disabled={isUpdatingAvailability}>
               <span>●</span>{isUpdatingAvailability ? 'Güncelleniyor…' : isAvailable ? 'Müsait durumdasınız' : 'Müsaitliği aç'}
@@ -540,7 +562,7 @@ export default function ArtisanDashboardPage() {
             ) : opportunities.map((opportunity) => {
               const bid = myBids.find((item) => item.request_id === opportunity.id);
               const distance = artisanCenter && typeof opportunity.latitude === 'number' && typeof opportunity.longitude === 'number'
-                ? formatDistanceKm(haversineDistanceKm(artisanCenter, { latitude: opportunity.latitude, longitude: opportunity.longitude }))
+                ? `${Math.max(1, Math.round(haversineDistanceKm(artisanCenter, { latitude: opportunity.latitude, longitude: opportunity.longitude })))} km`
                 : null;
               return (
                 <article
@@ -563,7 +585,7 @@ export default function ArtisanDashboardPage() {
                     <span className="small muted">{formatDate(opportunity.created_at) || 'Yeni'}</span>
                   </div>
                   <strong className="rota-job-title">{opportunity.title}</strong>
-                  <span className="rota-job-location">{formatLocation(opportunity.city, opportunity.district) || 'Konum belirtilmedi'}{distance ? ` · ${distance}` : ''}</span>
+                  <span className="rota-job-location">{formatLocation(opportunity.city, opportunity.district) || 'Konum belirtilmedi'}{opportunity.location_is_approximate ? ' · Yaklaşık konum' : ''}{distance ? ` · ~${distance}` : ''}</span>
                   {opportunity.customer_phone && (
                     <a
                       className="rota-customer-phone"
@@ -600,7 +622,8 @@ export default function ArtisanDashboardPage() {
                   {selectedMapOpportunityId === opportunity.id && (
                     <div className="rota-job-detail">
                       {opportunity.description && <p>{opportunity.description}</p>}
-                      {opportunity.address && <span className="rota-job-address">⌖ {formatLocation(opportunity.city, opportunity.district, opportunity.address)}</span>}
+                      {opportunity.location_is_approximate && <span className="rota-job-address">⌖ {formatLocation(opportunity.city, opportunity.district) || 'Konum'} · Yaklaşık konum (2 km alan)</span>}
+                      {!opportunity.location_is_approximate && opportunity.address && <span className="rota-job-address">⌖ {formatLocation(opportunity.city, opportunity.district, opportunity.address)}</span>}
                       {opportunity.images?.length > 0 && <div className="rota-job-images">{opportunity.images.slice(0, 3).map((image) => <img key={image} src={image} alt="İş talebi" />)}</div>}
                       {activeRequestId === opportunity.id && selectedMapCanBid ? (
                         <form className="rota-bid-form" onSubmit={(event) => { event.preventDefault(); void handleSendBid(opportunity.id); }}>
@@ -670,8 +693,9 @@ export default function ArtisanDashboardPage() {
               <p className="list-sub">
                 Müşteri: <strong style={{ color: 'var(--ink)' }}>{bid.customer_name}</strong> · Konum:{' '}
                 <strong style={{ color: 'var(--ink)' }}>
-                  {formatLocation(bid.request_city, bid.request_district, bid.request_address) ||
-                    'Belirtilmedi'}
+                  {bid.request_location_is_approximate
+                    ? `${formatCityDistrict(bid.request_city, bid.request_district) || 'Konum'} · Yaklaşık konum`
+                    : formatLocation(bid.request_city, bid.request_district, bid.request_address) || 'Belirtilmedi'}
                 </strong>
               </p>
 
@@ -897,7 +921,9 @@ export default function ArtisanDashboardPage() {
 
                             <h3 className="list-title">{item.title}</h3>
                             <p className="list-sub">
-                              {formatLocation(item.city, item.district, item.address) || 'Konum belirtilmedi'}
+                              {item.location_is_approximate
+                                ? `${formatCityDistrict(item.city, item.district) || 'Konum'} · Yaklaşık konum`
+                                : formatLocation(item.city, item.district, item.address) || 'Konum belirtilmedi'}
                             </p>
 
                             {requestPoint && (
@@ -919,15 +945,19 @@ export default function ArtisanDashboardPage() {
                                 >
                                   Haritada gör
                                 </a>
-                                <a
-                                  href={googleMapsDirectionsUrl(requestPoint, artisanCenter)}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="small"
-                                  style={{ color: 'var(--primary)', fontWeight: 650 }}
-                                >
-                                  Yol tarifi al ↗
-                                </a>
+                                {item.location_is_approximate ? (
+                                  <span className="small muted">Yaklaşık konum gösterilir; adres teklif kabul edilince paylaşılır.</span>
+                                ) : (
+                                  <a
+                                    href={googleMapsDirectionsUrl(requestPoint, artisanCenter)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="small"
+                                    style={{ color: 'var(--primary)', fontWeight: 650 }}
+                                  >
+                                    Yol tarifi al ↗
+                                  </a>
+                                )}
                               </div>
                             )}
                             <p style={{ color: 'var(--ink-soft)', fontSize: '0.9rem', marginTop: '0.5rem', lineHeight: 1.55 }}>
@@ -1132,13 +1162,15 @@ export default function ArtisanDashboardPage() {
                 </div>
 
                 <div className="bid-detail-item">
-                  <span className="small muted">Hizmet adresi</span>
+                  <span className="small muted">{selectedOpportunity.location_is_approximate ? 'Yaklaşık konum' : 'Hizmet adresi'}</span>
                   <strong>
-                    {formatLocation(
-                      selectedOpportunity.city,
-                      selectedOpportunity.district,
-                      selectedOpportunity.address
-                    ) || 'Belirtilmedi'}
+                    {selectedOpportunity.location_is_approximate
+                      ? `${formatCityDistrict(selectedOpportunity.city, selectedOpportunity.district) || 'Konum'} · Yaklaşık konum`
+                      : formatLocation(
+                          selectedOpportunity.city,
+                          selectedOpportunity.district,
+                          selectedOpportunity.address
+                        ) || 'Belirtilmedi'}
                   </strong>
                 </div>
 
@@ -1275,19 +1307,21 @@ export default function ArtisanDashboardPage() {
                           rel="noreferrer"
                           className="btn btn-secondary"
                         >
-                          Haritada aç
+                          {selectedOpportunity.location_is_approximate ? 'Yaklaşık konum alanını aç' : 'Haritada aç'}
                         </a>
-                        <a
-                          href={googleMapsDirectionsUrl(
-                            selectedOpportunityPoint,
-                            artisanCenter
-                          )}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="btn btn-primary"
-                        >
-                          Yol tarifi al ↗
-                        </a>
+                        {!selectedOpportunity.location_is_approximate && (
+                          <a
+                            href={googleMapsDirectionsUrl(
+                              selectedOpportunityPoint,
+                              artisanCenter
+                            )}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn btn-primary"
+                          >
+                            Yol tarifi al ↗
+                          </a>
+                        )}
                       </>
                     )}
                     {canBidOnSelectedOpportunity && (
@@ -1391,13 +1425,15 @@ export default function ArtisanDashboardPage() {
                 </div>
 
                 <div className="bid-detail-item">
-                  <span className="small muted">Hizmet adresi</span>
+                  <span className="small muted">{selectedBid.request_location_is_approximate ? 'Yaklaşık konum' : 'Hizmet adresi'}</span>
                   <strong>
-                    {formatLocation(
-                      selectedBid.request_city,
-                      selectedBid.request_district,
-                      selectedBid.request_address
-                    ) || 'Belirtilmedi'}
+                    {selectedBid.request_location_is_approximate
+                      ? `${formatCityDistrict(selectedBid.request_city, selectedBid.request_district) || 'Konum'} · Yaklaşık konum`
+                      : formatLocation(
+                          selectedBid.request_city,
+                          selectedBid.request_district,
+                          selectedBid.request_address
+                        ) || 'Belirtilmedi'}
                   </strong>
                 </div>
 
@@ -1449,13 +1485,18 @@ export default function ArtisanDashboardPage() {
                 <div className="bid-detail-item">
                   <span className="small muted">Yol haritası</span>
                   {selectedRequestPoint && artisanCenter ? (
-                    <RouteMapDemo
-                      origin={artisanCenter}
-                      destination={selectedRequestPoint}
-                      originLabel="Konumunuz"
-                      destinationLabel="İş konumu"
-                      height={260}
-                    />
+                    <>
+                      <RouteMapDemo
+                        origin={artisanCenter}
+                        destination={selectedRequestPoint}
+                        originLabel="Konumunuz"
+                        destinationLabel={selectedBid.request_location_is_approximate ? 'Yaklaşık iş konumu' : 'İş konumu'}
+                        height={260}
+                      />
+                      {selectedBid.request_location_is_approximate && (
+                        <p className="small muted">Kesin adres, teklif kabul edilince paylaşılır.</p>
+                      )}
+                    </>
                   ) : selectedRequestPoint ? (
                     <div className="alert alert-warning">
                       Yol haritasını göstermek için profilinize konum ekleyin.{' '}
@@ -1510,16 +1551,18 @@ export default function ArtisanDashboardPage() {
                       rel="noreferrer"
                       className="btn btn-secondary"
                     >
-                      Haritada aç
+                      {selectedBid.request_location_is_approximate ? 'Yaklaşık konum alanını aç' : 'Haritada aç'}
                     </a>
-                    <a
-                      href={googleMapsDirectionsUrl(selectedRequestPoint, artisanCenter)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="btn btn-primary"
-                    >
-                      Yol tarifi al ↗
-                    </a>
+                    {!selectedBid.request_location_is_approximate && (
+                      <a
+                        href={googleMapsDirectionsUrl(selectedRequestPoint, artisanCenter)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-primary"
+                      >
+                        Yol tarifi al ↗
+                      </a>
+                    )}
                   </>
                 )}
                 <button

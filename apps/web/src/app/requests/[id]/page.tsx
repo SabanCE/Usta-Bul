@@ -18,6 +18,7 @@ interface Bid {
   artisan_phone: string | null;
   artisan_latitude?: number | null;
   artisan_longitude?: number | null;
+  artisan_location_is_approximate?: boolean;
   price: number;
   estimated_duration: string;
   note: string;
@@ -38,11 +39,12 @@ interface RequestDetail {
   category: string;
   title: string;
   description: string;
-  address: string;
+  address: string | null;
   city: string | null;
   district: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  location_is_approximate?: boolean;
   urgency: string;
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   created_at: string;
@@ -304,6 +306,10 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
   };
   const st = statusMap[detail.status] || statusMap.pending;
   const urgencyLabel = detail.urgency === 'urgent' ? 'Acil' : detail.urgency === 'flexible' ? 'Esnek' : 'Normal';
+  const cityDistrict = formatCityDistrict(detail.city, detail.district);
+  const requestLocationLabel = detail.location_is_approximate
+    ? `${cityDistrict || 'Konum'} · Yaklaşık konum`
+    : formatLocation(detail.city, detail.district, detail.address) || 'Konum belirtilmedi';
   const requestPoint =
     typeof detail.latitude === 'number' && typeof detail.longitude === 'number'
       ? { latitude: detail.latitude, longitude: detail.longitude }
@@ -312,14 +318,18 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
   return (
     <div className="page">
       <div className="container" style={{ maxWidth: 880 }}>
-        <div className="mb-3">
+        <div className="request-detail-heading">
           <Link href="/requests" className="small muted">
             ← Taleplerime dön
           </Link>
+          <span className="request-detail-kicker">USTA BUL · TALEP DURUMUNUZ</span>
           <div className="flex-between mt-1">
             <h1 className="page-title">{detail.title}</h1>
             <span className={`badge ${st.cls}`}>{st.label}</span>
           </div>
+          <p className="request-detail-slogan">
+            Teklifleri karşılaştırın, işinizi güvenle takip edin.
+          </p>
         </div>
 
         {errorMsg && <div className="alert alert-error mb-3">{errorMsg}</div>}
@@ -381,7 +391,7 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
             <p style={{ color: 'var(--ink-soft)', fontSize: '0.95rem', lineHeight: 1.65 }}>{detail.description}</p>
 
             <div className="flex flex-wrap muted small mt-2" style={{ gap: '1.25rem' }}>
-              <span>{formatLocation(detail.city, detail.district, detail.address) || 'Konum belirtilmedi'}</span>
+              <span>{requestLocationLabel}</span>
               <span>Aciliyet: <strong style={{ color: 'var(--ink)' }}>{urgencyLabel}</strong></span>
               <span>{formatDate(detail.created_at)}</span>
             </div>
@@ -404,7 +414,9 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
                 className="mt-2"
                 latitude={detail.latitude}
                 longitude={detail.longitude}
-                locationLabel={formatCityDistrict(detail.city, detail.district)}
+                locationLabel={detail.location_is_approximate
+                  ? `${cityDistrict || 'Konum'} · Yaklaşık konum`
+                  : cityDistrict}
                 title="Hizmet konumu haritası"
                 height={240}
               />
@@ -466,6 +478,9 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
                           </div>
                           {artisanPoint && requestPoint && (
                             <div className="mt-1">
+                              {bid.artisan_location_is_approximate && (
+                                <span className="small muted">Usta konumu yaklaşık gösterilir · </span>
+                              )}
                               <DrivingTimeBadge
                                 origin={artisanPoint}
                                 destination={requestPoint}
