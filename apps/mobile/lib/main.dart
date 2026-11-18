@@ -1,14 +1,20 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'core/api/api_service.dart';
 import 'core/storage/token_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/requests/requests_list_screen.dart';
 import 'screens/dashboard/artisan_dashboard_screen.dart';
+import 'screens/dashboard/artisan_bids_screen.dart';
 import 'screens/profile/profile_screen.dart';
+import 'screens/profile/support_screen.dart';
+import 'widgets/startup_splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  unawaited(ApiService().warmUp());
   runApp(const UstaBulMobileApp());
 }
 
@@ -46,11 +52,16 @@ class _RootNavigationWrapperState extends State<RootNavigationWrapper> {
   }
 
   Future<void> _checkAuth() async {
-    final hasToken = await TokenStorage.hasToken();
-    final role = await TokenStorage.getUserRole();
+    final showSplash = _isLoading;
+    final session = await TokenStorage.getSessionStatus();
+    if (!mounted) return;
+    if (showSplash) {
+      await Future<void>.delayed(const Duration(milliseconds: 1100));
+    }
+    if (!mounted) return;
     setState(() {
-      _isLoggedIn = hasToken;
-      _userRole = role;
+      _isLoggedIn = session.hasToken;
+      _userRole = session.role;
       _isLoading = false;
     });
   }
@@ -70,11 +81,7 @@ class _RootNavigationWrapperState extends State<RootNavigationWrapper> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const StartupSplashScreen();
     }
 
     if (!_isLoggedIn) {
@@ -83,17 +90,24 @@ class _RootNavigationWrapperState extends State<RootNavigationWrapper> {
 
     final isArtisan = _userRole == 'artisan';
 
-    // Sekmeler (Müşteri vs Usta rollerine özel)
     final pages = isArtisan
         ? [
             const ArtisanDashboardScreen(),
-            const HomeScreen(), // Ustalar da keşfedebilir
-            ProfileScreen(onLogout: _onLogout),
+            const ArtisanBidsScreen(),
+            const SupportScreen(),
+            ProfileScreen(
+              onLogout: _onLogout,
+              onSupport: () => setState(() => _currentIndex = 2),
+            ),
           ]
         : [
             const HomeScreen(),
             const RequestsListScreen(),
-            ProfileScreen(onLogout: _onLogout),
+            const SupportScreen(),
+            ProfileScreen(
+              onLogout: _onLogout,
+              onSupport: () => setState(() => _currentIndex = 2),
+            ),
           ];
 
     final bottomNavItems = isArtisan
@@ -104,9 +118,14 @@ class _RootNavigationWrapperState extends State<RootNavigationWrapper> {
               label: 'İş Paneli',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.search_outlined),
-              activeIcon: Icon(Icons.search_rounded),
-              label: 'Ustalar',
+              icon: Icon(Icons.local_offer_outlined),
+              activeIcon: Icon(Icons.local_offer_rounded),
+              label: 'Tekliflerim',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.support_agent_outlined),
+              activeIcon: Icon(Icons.support_agent_rounded),
+              label: 'Destek',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),
@@ -124,6 +143,11 @@ class _RootNavigationWrapperState extends State<RootNavigationWrapper> {
               icon: Icon(Icons.receipt_long_outlined),
               activeIcon: Icon(Icons.receipt_long_rounded),
               label: 'Taleplerim',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.support_agent_outlined),
+              activeIcon: Icon(Icons.support_agent_rounded),
+              label: 'Destek',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),

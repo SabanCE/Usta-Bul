@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "test": "tsx --test src/services/trustSafety.service.test.ts",
+    "test": "tsx --test src/services/trustSafety.service.test.ts src/utils/locationPrivacy.test.ts src/services/requestPolicy.test.ts",
     "start": "node dist/server.js",
     "migrate": "tsx src/scripts/migrate.ts",
     "seed": "tsx src/scripts/seed.ts"

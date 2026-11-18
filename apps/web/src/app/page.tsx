@@ -8,6 +8,7 @@ import { DEFAULT_RADIUS_KM, RADIUS_OPTIONS } from '../components/LocationPicker'
 import { formatCityDistrict, formatDistanceKm } from '../utils/location';
 import { useAuth } from '../context/AuthContext';
 import { apiUrl, getAuthHeaders, resolveMediaUrl } from '../utils/api';
+import { normalizeSearchText } from '../utils/search';
 import DiscoveryMap, { DiscoveryPoint } from '../components/DiscoveryMap';
 import ArtisanAvatar from '../components/ArtisanAvatar';
 import applianceIcon from '../assets/trades/appliance.png';
@@ -63,6 +64,24 @@ const CATEGORY_ICONS: Record<string, StaticImageData> = {
   renovation: renovationIcon,
 };
 
+const serviceSearchTerms: Record<string, string[]> = {
+  plumber: ['tesisat', 'sihhi tesisat', 'su tesisat'],
+  electrician: ['elektrik', 'elektrikci', 'elektrik ustasi'],
+  painter: ['boya', 'badana', 'boyaci'],
+  carpenter: ['marangoz', 'mobilya', 'marangozu'],
+  locksmith: ['cilingir', 'kilit', 'kilitci'],
+  appliance: ['beyaz esya', 'buzdolabi', 'bulasik makinesi'],
+  renovation: ['tadilat', 'tadilatci', 'yenileme', 'renovasyon', 'ev tadilati'],
+};
+
+const getArtisanSearchQuery = (value: string) => {
+  const normalized = normalizeSearchText(value).trim();
+  for (const [category, terms] of Object.entries(serviceSearchTerms)) {
+    if (terms.some((term) => normalized.startsWith(term))) return category;
+  }
+  return value.trim();
+};
+
 export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -79,6 +98,7 @@ export default function HomePage() {
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [selectedArtisanId, setSelectedArtisanId] = useState<string | null>(null);
   const [focusRequest, setFocusRequest] = useState(0);
+  const artisanSearchRequestId = useRef(0);
 
   const handleSelectArtisan = (artisanId: string) => {
     setSelectedArtisanId(artisanId);
@@ -141,12 +161,13 @@ export default function HomePage() {
 
   const fetchArtisans = async () => {
     if (!locationReady) return;
+    const requestId = ++artisanSearchRequestId.current;
     setLoading(true);
     setErrorMsg('');
     try {
       const params = new URLSearchParams();
       if (selectedCategory) params.append('category', selectedCategory);
-      if (searchQuery) params.append('query', searchQuery);
+      if (searchQuery.trim()) params.append('query', getArtisanSearchQuery(searchQuery));
       if (sortBy) params.append('sortBy', sortBy);
 
       if (user?.role === 'customer' && !userLocation) {
@@ -168,6 +189,7 @@ export default function HomePage() {
       if (!res.ok) {
         throw new Error(data?.error?.message || 'Ustalar yüklenemedi.');
       }
+      if (requestId !== artisanSearchRequestId.current) return;
 
       const nextArtisans: Artisan[] = Array.isArray(data?.data) ? data.data : [];
       setArtisans(nextArtisans);
@@ -177,16 +199,21 @@ export default function HomePage() {
           : null
       );
     } catch (err: any) {
-      setArtisans([]);
-      setErrorMsg(err?.message || 'Ustalar yüklenemedi. Lütfen tekrar deneyin.');
+      if (requestId === artisanSearchRequestId.current) {
+        setArtisans([]);
+        setErrorMsg(err?.message || 'Ustalar yüklenemedi. Lütfen tekrar deneyin.');
+      }
     } finally {
-      setLoading(false);
+      if (requestId === artisanSearchRequestId.current) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchArtisans();
-  }, [selectedCategory, radiusKm, sortBy, userLocation, locationReady, user]);
+    const timeout = window.setTimeout(() => {
+      void fetchArtisans();
+    }, 250);
+    return () => window.clearTimeout(timeout);
+  }, [selectedCategory, searchQuery, radiusKm, sortBy, userLocation, locationReady, user]);
 
   const handleDetectLocation = async () => {
     const coordinates = await locate();
@@ -270,9 +297,13 @@ export default function HomePage() {
               <strong>Hizmet seçin</strong>
               <input
                 type="search"
-                placeholder="Örn. elektrikçi, tesisatçı"
+                placeholder="Usta adı veya hizmet (örn. tadilat, elektrikçi)"
+                aria-label="Usta adı veya hizmet ara"
                 value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
+                onChange={(event) => {
+                  setSearchQuery(event.target.value);
+                  setSelectedCategory('');
+                }}
               />
             </span>
           </label>
@@ -282,7 +313,10 @@ export default function HomePage() {
               <strong>Hizmet kategorisi</strong>
               <select
                 value={selectedCategory}
-                onChange={(event) => setSelectedCategory(event.target.value)}
+                onChange={(event) => {
+                  setSelectedCategory(event.target.value);
+                  setSearchQuery('');
+                }}
                 aria-label="Hizmet kategorisi"
               >
                 <option value="">Tüm kategoriler</option>
@@ -310,9 +344,19 @@ export default function HomePage() {
         )}
 
         <section className="home-shortcuts" aria-label="Hızlı işlemler">
-          <Link href="/register?role=artisan" className="home-shortcut home-shortcut-artisan">
+          <Link
+            href={user?.role === 'customer' ? '/requests' : '/register?role=artisan'}
+            className="home-shortcut home-shortcut-artisan"
+          >
             <span className="home-shortcut-icon" aria-hidden="true">♙</span>
-            <span><strong>Usta Ol</strong><small>İşlerini artır, yeni müşterilere ulaş</small></span>
+            <span>
+              <strong>{user?.role === 'customer' ? 'Tekliflerim' : 'Usta Ol'}</strong>
+              <small>
+                {user?.role === 'customer'
+                  ? 'Aldığınız teklifleri görüntüleyin'
+                  : 'İşlerini artır, yeni müşterilere ulaş'}
+              </small>
+            </span>
             <span className="home-shortcut-arrow" aria-hidden="true">›</span>
           </Link>
           <Link href="/requests/new" className="home-shortcut home-shortcut-request">
@@ -361,7 +405,7 @@ export default function HomePage() {
           <div className="home-section-heading">
             <div>
               <span className="home-eyebrow">Size yardımcı olmaya hazırlar</span>
-              <h2 id="home-artisans-title">Öne çıkan ustalar</h2>
+              <h2 id="home-artisans-title">{searchQuery.trim() ? 'Arama sonuçları' : 'Öne çıkan ustalar'}</h2>
             </div>
             <a href="#home-map" className="home-text-link">Haritada gör <span aria-hidden="true">›</span></a>
           </div>
@@ -388,7 +432,7 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="home-artisan-grid">
-              {artisans.slice(0, 6).map((artisan) => (
+              {(searchQuery.trim() ? artisans : artisans.slice(0, 6)).map((artisan) => (
                 <article
                   key={artisan.id}
                   id={`rota-artisan-${artisan.id}`}

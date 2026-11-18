@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/api/api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../widgets/brand_hero_card.dart';
 import '../../widgets/location_picker.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -113,6 +114,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const BrandHeroCard(
+                eyebrow: 'USTA BUL · ARAMIZA KATILIN',
+                title: 'İyi hizmet, doğru eşleşmeyle başlar.',
+                subtitle:
+                    'İhtiyacınıza göre müşteri olun ya da işlerinize yeni müşteriler bulun.',
+                icon: Icons.groups_rounded,
+              ),
+              const SizedBox(height: 20),
               // Rol Seçici (Müşteri vs Usta)
               Row(
                 children: [

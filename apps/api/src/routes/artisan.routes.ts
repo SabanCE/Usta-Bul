@@ -159,7 +159,7 @@ router.get(
   authorize('artisan'),
   asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user!.id;
-    const profile = await artisanService.getArtisanDetail(userId, true);
+    const profile = await artisanService.getArtisanDetail(userId, true, true);
     res.json({
       success: true,
       data: profile,

@@ -1,7 +1,9 @@
 import pool, { query } from '../config/db';
 import { ensureSchema } from '../config/schema';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../errors/AppError';
+import { approximateCoordinates } from '../utils/locationPrivacy';
 import { assertSubmissionAllowed, getModerationStatus } from './trustSafety.service';
+import { mayCancelRequest } from './requestPolicy';
 
 export interface CreateRequestInput {
   category: string;
@@ -306,7 +308,18 @@ export class JobService {
       sql += ` GROUP BY r.id, u.full_name, u.phone ORDER BY r.created_at DESC`;
 
       const result = await query(sql, params);
-      return result.rows;
+      if (!filter.targetArtisanId) return result.rows;
+
+      return result.rows.map((request: any) => {
+        const location = approximateCoordinates(request.latitude, request.longitude);
+        return {
+          ...request,
+          address: null,
+          latitude: location?.latitude ?? null,
+          longitude: location?.longitude ?? null,
+          location_is_approximate: location !== null,
+        };
+      });
     } catch (err: any) {
       console.error('[JobService] Talep listesi alınamadı:', err.message);
       throw err;
@@ -398,7 +411,25 @@ export class JobService {
         [requestId, currentUserRole, currentUserRole, currentUserId]
       );
 
-      request.bids = bidsRes.rows;
+      request.bids = bidsRes.rows.map((bid: any) => {
+        const location = approximateCoordinates(bid.artisan_latitude, bid.artisan_longitude);
+        return {
+          ...bid,
+          artisan_latitude: location?.latitude ?? null,
+          artisan_longitude: location?.longitude ?? null,
+          artisan_location_is_approximate: location !== null,
+        };
+      });
+
+      if (currentUserRole === 'artisan' && !isAssignedArtisan) {
+        const location = approximateCoordinates(request.latitude, request.longitude);
+        request.address = null;
+        request.latitude = location?.latitude ?? null;
+        request.longitude = location?.longitude ?? null;
+        request.location_is_approximate = location !== null;
+      } else {
+        request.location_is_approximate = false;
+      }
 
       request.customer_phone = isAssignedArtisan ? request.customer_phone : null;
 
@@ -452,7 +483,23 @@ export class JobService {
          ORDER BY b.created_at DESC`,
         [artisanId]
       );
-      return result.rows;
+      return result.rows.map((bid: any) => {
+        if (bid.is_accepted) {
+          return { ...bid, request_location_is_approximate: false };
+        }
+
+        const location = approximateCoordinates(
+          bid.request_latitude,
+          bid.request_longitude
+        );
+        return {
+          ...bid,
+          request_address: null,
+          request_latitude: location?.latitude ?? null,
+          request_longitude: location?.longitude ?? null,
+          request_location_is_approximate: location !== null,
+        };
+      });
     } catch (err: any) {
       console.error('[JobService] Usta teklifleri alınamadı:', err.message);
       throw err;
@@ -577,42 +624,85 @@ export class JobService {
 
   // 4.2 Teklifi Geri Çekme (Usta)
   async withdrawBid(artisanId: string, requestId: string, bidId: string) {
-    const bidRes = await query(
-      `SELECT b.id, b.artisan_id, b.status, b.is_accepted,
-              r.status as request_status
-       FROM bids b
-       JOIN service_requests r ON b.request_id = r.id
-       WHERE b.id = $1 AND b.request_id = $2`,
-      [bidId, requestId]
-    );
-
-    if (bidRes.rows.length === 0) {
-      throw new NotFoundError('Geri çekilecek teklif bulunamadı.');
-    }
-
-    const bid = bidRes.rows[0];
-
-    if (bid.artisan_id !== artisanId) {
-      throw new ForbiddenError('Yalnızca kendi teklifinizi geri çekebilirsiniz.');
-    }
-
-    if (bid.is_accepted || bid.status === 'accepted') {
-      throw new BadRequestError('Kabul edilmiş bir teklif geri çekilemez.');
-    }
-
-    if (bid.request_status !== 'pending') {
-      throw new BadRequestError(
-        'Bu talep artık teklif alımına kapalı olduğu için teklif geri çekilemez.'
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const requestRes = await client.query(
+        'SELECT id, status FROM service_requests WHERE id = $1 FOR UPDATE',
+        [requestId]
       );
+      if (requestRes.rows.length === 0) {
+        throw new NotFoundError('Talep bulunamadı.');
+      }
+
+      const bidRes = await client.query(
+        'SELECT id, artisan_id, status, is_accepted FROM bids WHERE id = $1 AND request_id = $2 FOR UPDATE',
+        [bidId, requestId]
+      );
+      if (bidRes.rows.length === 0) {
+        throw new NotFoundError('Geri çekilecek teklif bulunamadı.');
+      }
+
+      const bid = bidRes.rows[0];
+      if (bid.artisan_id !== artisanId) {
+        throw new ForbiddenError('Yalnızca kendi teklifinizi kaldırabilirsiniz.');
+      }
+      if (bid.is_accepted || bid.status === 'accepted') {
+        throw new BadRequestError('Kabul edilmiş bir teklif kaldırılamaz.');
+      }
+      if (requestRes.rows[0].status !== 'pending' || bid.status !== 'pending') {
+        throw new BadRequestError('Yalnızca beklemedeki teklifler kaldırılabilir.');
+      }
+
+      await client.query('DELETE FROM bids WHERE id = $1', [bidId]);
+      await client.query('COMMIT');
+      return { id: bidId, request_id: requestId };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
+  }
 
-    if (bid.status !== 'pending') {
-      throw new BadRequestError('Yalnızca beklemedeki teklifler geri çekilebilir.');
+  async removeIncomingBid(customerId: string, requestId: string, bidId: string) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const requestRes = await client.query(
+        'SELECT id, customer_id FROM service_requests WHERE id = $1 FOR UPDATE',
+        [requestId]
+      );
+      if (requestRes.rows.length === 0) {
+        throw new NotFoundError('Talep bulunamadı.');
+      }
+      if (requestRes.rows[0].customer_id !== customerId) {
+        throw new ForbiddenError('Yalnızca talep sahibi müşteri teklifi kaldırabilir.');
+      }
+
+      const bidRes = await client.query(
+        'SELECT id, status, is_accepted FROM bids WHERE id = $1 AND request_id = $2 FOR UPDATE',
+        [bidId, requestId]
+      );
+      if (bidRes.rows.length === 0) {
+        throw new NotFoundError('Kaldırılacak teklif bulunamadı.');
+      }
+      if (bidRes.rows[0].is_accepted || bidRes.rows[0].status === 'accepted') {
+        throw new BadRequestError('Kabul edilmiş teklif kaldırılamaz.');
+      }
+      if (!['pending', 'rejected'].includes(bidRes.rows[0].status)) {
+        throw new BadRequestError('Bu teklif artık kaldırılamaz.');
+      }
+
+      await client.query('DELETE FROM bids WHERE id = $1', [bidId]);
+      await client.query('COMMIT');
+      return { id: bidId, request_id: requestId };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
-
-    await query('DELETE FROM bids WHERE id = $1', [bidId]);
-
-    return { id: bidId, request_id: requestId };
   }
 
   // 4.3 Teklifi Reddetme (Müşteri)
@@ -801,11 +891,10 @@ export class JobService {
       ) {
         throw new BadRequestError('Yalnızca devam eden bir iş tamamlandı olarak işaretlenebilir.');
       }
-      if (
-        newStatus === 'cancelled' &&
-        (!isCustomerOwner || !['pending', 'in_progress'].includes(request.status))
-      ) {
-        throw new BadRequestError('Bu talep bu aşamada iptal edilemez.');
+      if (newStatus === 'cancelled') {
+        if (!mayCancelRequest(request.status, isCustomerOwner, isAssignedArtisan)) {
+          throw new BadRequestError('Bu talep bu aşamada iptal edilemez.');
+        }
       }
 
       const result = await client.query(
@@ -815,6 +904,14 @@ export class JobService {
          RETURNING *`,
         [newStatus, requestId]
       );
+      if (newStatus === 'cancelled') {
+        await client.query(
+          `UPDATE request_chats
+           SET status = 'ended', closed_by = $1, closed_at = NOW()
+           WHERE request_id = $2 AND status = 'open'`,
+          [userId, requestId]
+        );
+      }
       await client.query('COMMIT');
       return result.rows[0];
     } catch (err) {

@@ -8,6 +8,7 @@ import LocationMap from '../../../components/LocationMap';
 import DrivingTimeBadge from '../../../components/DrivingTimeBadge';
 import ReportButton from '../../../components/ReportButton';
 import ArtisanAvatar from '../../../components/ArtisanAvatar';
+import RequestChat from '../../../components/RequestChat';
 
 interface Bid {
   id: string;
@@ -234,6 +235,50 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
     }
   };
 
+  const handleCancelJob = async () => {
+    if (!detail) return;
+    const confirmed = window.confirm('Devam eden işi iptal etmek istiyor musunuz? Bu işlem geri alınamaz.');
+    if (!confirmed) return;
+
+    setActionLoading(true);
+    setErrorMsg('');
+    try {
+      const res = await fetch(apiUrl(`/api/v1/requests/${params.id}/status`), {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status: 'cancelled' }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error?.message || 'İş iptal edilemedi.');
+      setDetail({ ...detail, status: 'cancelled' });
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'İş iptal edilemedi. Lütfen tekrar deneyin.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRemoveBid = async (bidId: string) => {
+    if (!detail) return;
+    if (!window.confirm('Bu teklifi talep listenizden kaldırmak istiyor musunuz?')) return;
+
+    setActionLoading(true);
+    setErrorMsg('');
+    try {
+      const res = await fetch(apiUrl(`/api/v1/requests/${params.id}/bids/${bidId}`), {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error?.message || 'Teklif kaldırılamadı.');
+      setDetail({ ...detail, bids: detail.bids.filter((bid) => bid.id !== bidId) });
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Teklif kaldırılamadı. Lütfen tekrar deneyin.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     const artisanId = acceptedArtisan?.id || detail?.bids?.find((b) => b.is_accepted)?.artisan_id;
@@ -335,6 +380,7 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
         {errorMsg && <div className="alert alert-error mb-3">{errorMsg}</div>}
 
         {acceptedArtisan && (
+          <>
           <div className="card mb-3" style={{ borderColor: '#a7f3d0', background: 'var(--success-soft)' }}>
             <div className="card-body flex-between">
               <div>
@@ -343,7 +389,7 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
                 <div className="small muted mt-1">
                   İletişim:{' '}
                   {acceptedArtisan.phone ? (
-                    <a href={`tel:${acceptedArtisan.phone}`} style={{ color: 'var(--success)', fontWeight: 600 }}>
+                    <a href={`tel:${acceptedArtisan.phone.replace(/\s/g, '')}`} style={{ color: 'var(--success)', fontWeight: 600 }}>
                       {acceptedArtisan.phone}
                     </a>
                   ) : (
@@ -354,9 +400,14 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
 
               <div>
                 {detail.status === 'in_progress' && (
+                  <div className="flex flex-wrap" style={{ gap: '0.5rem' }}>
                   <button type="button" onClick={handleCompleteJob} disabled={actionLoading} className="btn btn-success">
                     İşi tamamlandı olarak onayla
                   </button>
+                    <button type="button" onClick={handleCancelJob} disabled={actionLoading} className="btn btn-outline-danger">
+                      İşi iptal et
+                    </button>
+                  </div>
                 )}
                 {detail.status === 'completed' &&
                   (existingReview ? (
@@ -384,6 +435,8 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
               </div>
             </div>
           </div>
+          <RequestChat requestId={detail.id} />
+          </>
         )}
 
         <div className="card mb-3">
@@ -419,6 +472,7 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
                   : cityDistrict}
                 title="Hizmet konumu haritası"
                 height={240}
+                showActions={false}
               />
             )}
             <div className="mt-1">
@@ -498,9 +552,18 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
                         <strong>Usta notu:</strong> {bid.note}
                       </div>
                     )}
-                    <div className="mt-1">
-                      <ReportButton targetType="bid" targetId={bid.id} />
-                    </div>
+                    {!isAccepted && (
+                      <div className="mt-1">
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          disabled={actionLoading}
+                          onClick={() => void handleRemoveBid(bid.id)}
+                        >
+                          Teklifi kaldır
+                        </button>
+                      </div>
+                    )}
 
                     <div className="flex-between mt-2" style={{ alignItems: 'center', gap: '0.75rem' }}>
                       <span className="small muted" />

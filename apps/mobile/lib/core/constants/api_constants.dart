@@ -1,21 +1,6 @@
-import 'package:flutter/foundation.dart';
-import 'dart:io' show Platform;
-
 class ApiConstants {
-  // Emülatör & Cihaz Ağ Ayarları:
-  // Android Emulator için: 'http://10.0.2.2:5000/api/v1'
-  // Web / Windows / iOS için: 'http://localhost:5000/api/v1'
-  static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://localhost:5000/api/v1';
-    }
-    try {
-      if (Platform.isAndroid) {
-        return 'http://10.0.2.2:5000/api/v1';
-      }
-    } catch (_) {}
-    return 'http://localhost:5000/api/v1';
-  }
+  static const String baseUrl = 'https://usta-bul-1.onrender.com/api/v1';
+  static const String healthUrl = 'https://usta-bul-1.onrender.com/health';
 
   // Auth Uç Noktaları
   static const String register = '/auth/register';

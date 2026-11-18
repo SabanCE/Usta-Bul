@@ -1,3 +1,5 @@
+import 'package:latlong2/latlong.dart';
+
 class ArtisanModel {
   final String id;
   final String fullName;
@@ -10,9 +12,12 @@ class ArtisanModel {
   final String city;
   final String district;
   final double? distanceKm;
+  final double? latitude;
+  final double? longitude;
   final int? serviceRadiusKm;
   final String? avatarUrl;
   final bool isAvailable;
+  final bool locationIsApproximate;
 
   ArtisanModel({
     required this.id,
@@ -26,14 +31,32 @@ class ArtisanModel {
     required this.city,
     required this.district,
     this.distanceKm,
+    this.latitude,
+    this.longitude,
     this.serviceRadiusKm,
     this.avatarUrl,
     this.isAvailable = true,
+    this.locationIsApproximate = true,
   });
 
   String get locationLabel {
-    final parts = [district, city].where((part) => part.trim().isNotEmpty).toList();
+    final parts =
+        [district, city].where((part) => part.trim().isNotEmpty).toList();
     return parts.join(', ');
+  }
+
+  LatLng? get coordinates {
+    if (latitude == null ||
+        longitude == null ||
+        !latitude!.isFinite ||
+        !longitude!.isFinite ||
+        latitude! < -90 ||
+        latitude! > 90 ||
+        longitude! < -180 ||
+        longitude! > 180) {
+      return null;
+    }
+    return LatLng(latitude!, longitude!);
   }
 
   factory ArtisanModel.fromJson(Map<String, dynamic> json) {
@@ -52,18 +75,29 @@ class ArtisanModel {
           ? json['total_reviews']
           : int.tryParse(json['total_reviews']?.toString() ?? '0') ?? 0,
       hourlyRate: json['hourly_rate'] != null
-          ? (json['hourly_rate'] is num ? (json['hourly_rate'] as num).toDouble() : double.tryParse(json['hourly_rate'].toString()))
+          ? (json['hourly_rate'] is num
+              ? (json['hourly_rate'] as num).toDouble()
+              : double.tryParse(json['hourly_rate'].toString()))
           : null,
       city: json['city'] ?? '',
       district: json['district'] ?? '',
       distanceKm: json['distance_km'] != null
-          ? (json['distance_km'] is num ? (json['distance_km'] as num).toDouble() : double.tryParse(json['distance_km'].toString()))
+          ? (json['distance_km'] is num
+              ? (json['distance_km'] as num).toDouble()
+              : double.tryParse(json['distance_km'].toString()))
           : null,
+      latitude: json['latitude'] is num
+          ? (json['latitude'] as num).toDouble()
+          : double.tryParse(json['latitude']?.toString() ?? ''),
+      longitude: json['longitude'] is num
+          ? (json['longitude'] as num).toDouble()
+          : double.tryParse(json['longitude']?.toString() ?? ''),
       serviceRadiusKm: json['service_radius_km'] is int
           ? json['service_radius_km']
           : int.tryParse(json['service_radius_km']?.toString() ?? ''),
       avatarUrl: json['avatar_url'] ?? json['avatarUrl'],
       isAvailable: json['is_available'] ?? true,
+      locationIsApproximate: json['location_is_approximate'] != false,
     );
   }
 }

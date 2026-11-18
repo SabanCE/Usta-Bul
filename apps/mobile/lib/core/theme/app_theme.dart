@@ -7,19 +7,19 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  static const Color background = Color(0xFFF7F7F8);
+  static const Color background = Color(0xFFF6F8FC);
   static const Color surface = Color(0xFFFFFFFF);
 
-  static const Color ink = Color(0xFF111827);
-  static const Color inkSecondary = Color(0xFF6B7280);
-  static const Color inkFaint = Color(0xFF9CA3AF);
+  static const Color ink = Color(0xFF12233D);
+  static const Color inkSecondary = Color(0xFF647184);
+  static const Color inkFaint = Color(0xFF8794A5);
 
-  static const Color border = Color(0xFFE5E7EB);
+  static const Color border = Color(0xFFE4EAF2);
 
-  static const Color accent = Color(0xFF2563EB);
-  static const Color accentPressed = Color(0xFF1D4ED8);
-  static const Color accentSoft = Color(0xFFEFF6FF);
-  static const Color accentBorder = Color(0xFFDBEAFE);
+  static const Color accent = Color(0xFF0756CF);
+  static const Color accentPressed = Color(0xFF073A80);
+  static const Color accentSoft = Color(0xFFE8F1FF);
+  static const Color accentBorder = Color(0xFFC9DCFA);
 
   static const Color success = Color(0xFF059669);
   static const Color successSoft = Color(0xFFECFDF5);
@@ -30,7 +30,7 @@ class AppColors {
   static const Color danger = Color(0xFFDC2626);
   static const Color dangerSoft = Color(0xFFFEF2F2);
 
-  static const Color neutralSoft = Color(0xFFF3F4F6);
+  static const Color neutralSoft = Color(0xFFF0F3F8);
 }
 
 class AppTheme {
@@ -84,7 +84,7 @@ class AppTheme {
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.ink,
         surfaceTintColor: Colors.transparent,
-        elevation: 0,
+        elevation: 1,
         scrolledUnderElevation: 0,
         centerTitle: false,
         titleTextStyle: TextStyle(
@@ -96,7 +96,7 @@ class AppTheme {
       ),
       cardTheme: CardTheme(
         color: AppColors.surface,
-        elevation: 0,
+        elevation: 1,
         margin: EdgeInsets.zero,
         shape: roundedCard,
         clipBehavior: Clip.antiAlias,
@@ -109,9 +109,11 @@ class AppTheme {
           fontSize: 14,
           fontWeight: FontWeight.w400,
         ),
-        labelStyle: const TextStyle(color: AppColors.inkSecondary, fontSize: 14),
+        labelStyle:
+            const TextStyle(color: AppColors.inkSecondary, fontSize: 14),
         floatingLabelStyle: const TextStyle(color: AppColors.accent),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(fieldRadius),
           borderSide: const BorderSide(color: AppColors.border),
@@ -187,11 +189,13 @@ class AppTheme {
         backgroundColor: AppColors.surface,
         selectedItemColor: AppColors.accent,
         unselectedItemColor: AppColors.inkSecondary,
-        elevation: 0,
+        elevation: 8,
         type: BottomNavigationBarType.fixed,
         showUnselectedLabels: true,
-        selectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        selectedLabelStyle:
+            TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        unselectedLabelStyle:
+            TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.ink,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/models/artisan_model.dart';
 import '../../core/theme/app_theme.dart';
+import '../../widgets/brand_hero_card.dart';
 import '../requests/new_request_screen.dart';
 
 class ArtisanDetailScreen extends StatelessWidget {
@@ -19,6 +20,14 @@ class ArtisanDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const BrandHeroCard(
+              eyebrow: 'USTA BUL · DOĞRU USTA',
+              title: 'İşiniz emin ellerde.',
+              subtitle:
+                  'Usta bilgilerini ve değerlendirmelerini inceleyerek karar verin.',
+              icon: Icons.verified_user_rounded,
+            ),
+            const SizedBox(height: 18),
             // Usta Kartı Başlık
             Container(
               padding: const EdgeInsets.all(20),
@@ -59,6 +68,29 @@ class ArtisanDetailScreen extends StatelessWidget {
                     style: const TextStyle(
                         color: AppColors.inkSecondary, fontSize: 14),
                   ),
+                  if (artisan.locationIsApproximate) ...[
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Yaklaşık konum · Kesin adres paylaşılmaz',
+                      style: TextStyle(
+                        color: AppColors.inkFaint,
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  if (artisan.serviceRadiusKm != null &&
+                      artisan.serviceRadiusKm! > 0) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      '${artisan.serviceRadiusKm} km alanda hizmet veriyor.',
+                      style: const TextStyle(
+                        color: AppColors.inkSecondary,
+                        fontSize: 13,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,

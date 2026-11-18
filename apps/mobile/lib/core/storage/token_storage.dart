@@ -63,6 +63,15 @@ class TokenStorage {
     return token != null && token.isNotEmpty;
   }
 
+  static Future<({bool hasToken, String? role})> getSessionStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(_accessTokenKey);
+    return (
+      hasToken: token != null && token.isNotEmpty,
+      role: prefs.getString(_userRoleKey),
+    );
+  }
+
   // Çıkış Yap (Temizle)
   static Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();

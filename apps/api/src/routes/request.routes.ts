@@ -32,7 +32,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const artisanId = req.user!.id;
     const [profileResult, opportunitiesResult, bidsResult] = await Promise.allSettled([
-      artisanService.getArtisanDetail(artisanId, true),
+      artisanService.getArtisanDetail(artisanId, true, true),
       jobService.getRequests({ targetArtisanId: artisanId }),
       jobService.getArtisanBids(artisanId),
     ]);
@@ -374,8 +374,8 @@ router.post(
  * @openapi
  * /api/v1/requests/{id}/bids/{bidId}:
  *   delete:
- *     summary: Teklifi Geri Çek (Usta)
- *     description: Ustanın henüz kabul edilmemiş, beklemede olan teklifini geri çekmesi. Talep hâlâ teklif alımına açık olmalıdır.
+ *     summary: Teklifi Kaldır (Müşteri veya Usta)
+ *     description: Müşteri kendi talebine gelen kabul edilmemiş teklifi, usta ise beklemedeki kendi teklifini kaldırabilir.
  *     tags:
  *       - Talepler & Teklifler
  *     security:
@@ -400,14 +400,16 @@ router.post(
 router.delete(
   '/:id/bids/:bidId',
   authenticate,
-  authorize('artisan'),
+  authorize('customer', 'artisan'),
   asyncHandler(async (req: Request, res: Response) => {
-    const artisanId = req.user!.id;
+    const user = req.user!;
     const { id: requestId, bidId } = req.params;
-    const removed = await jobService.withdrawBid(artisanId, requestId, bidId);
+    const removed = user.role === 'customer'
+      ? await jobService.removeIncomingBid(user.id, requestId, bidId)
+      : await jobService.withdrawBid(user.id, requestId, bidId);
     res.json({
       success: true,
-      message: 'Teklifiniz geri çekildi.',
+      message: user.role === 'customer' ? 'Teklif kaldırıldı.' : 'Teklifiniz kaldırıldı.',
       data: removed,
     });
   })

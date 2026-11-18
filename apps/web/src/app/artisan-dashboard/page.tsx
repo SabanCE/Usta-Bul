@@ -12,9 +12,11 @@ import {
   haversineDistanceKm,
 } from '../../utils/location';
 import { apiUrl, getAuthHeaders } from '../../utils/api';
+import { normalizeSearchText } from '../../utils/search';
 import RouteMapDemo from '../../components/RouteMapDemo';
 import DiscoveryMap, { DiscoveryPoint } from '../../components/DiscoveryMap';
 import DraggableMapPanel from '../../components/DraggableMapPanel';
+import RequestChat from '../../components/RequestChat';
 
 interface Opportunity {
   id: string;
@@ -84,6 +86,7 @@ export default function ArtisanDashboardPage() {
 
   const [activeTab, setActiveTab] = useState<'opportunities' | 'my_bids' | 'completed'>('opportunities');
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [opportunityQuery, setOpportunityQuery] = useState('');
   const [myBids, setMyBids] = useState<ArtisanBid[]>([]);
   const [loading, setLoading] = useState(true);
   const [artisanProfile, setArtisanProfile] = useState<any>(null);
@@ -248,6 +251,23 @@ export default function ArtisanDashboardPage() {
         : null,
     [artisanProfile?.latitude, artisanProfile?.longitude]
   );
+  const filteredOpportunities = useMemo(() => {
+    const terms = normalizeSearchText(opportunityQuery).trim().split(/\s+/).filter(Boolean);
+    if (terms.length === 0) return opportunities;
+
+    return opportunities.filter((opportunity) => {
+      const searchableText = normalizeSearchText([
+        opportunity.title,
+        categoryLabels[opportunity.category] || opportunity.category,
+        opportunity.description,
+        opportunity.address,
+        opportunity.city,
+        opportunity.district,
+        opportunity.customer_name,
+      ].filter(Boolean).join(' '));
+      return terms.every((term) => searchableText.includes(term));
+    });
+  }, [opportunities, opportunityQuery]);
 
   const isCompletedJob = (bid: ArtisanBid) =>
     bid.request_status === 'completed' && bid.is_accepted;
@@ -353,17 +373,17 @@ export default function ArtisanDashboardPage() {
       const json = await res.json().catch(() => null);
 
       if (!res.ok) {
-        throw new Error(json?.error?.message || 'Teklif geri çekilemedi.');
+        throw new Error(json?.error?.message || 'Teklif kaldırılamadı.');
       }
 
       setMyBids((previous) => previous.filter((item) => item.id !== bid.id));
       setSelectedBid((previous) => (previous && previous.id === bid.id ? null : previous));
       setSuccessMsg(
-        'Teklifiniz geri çekildi. "İş fırsatları" sekmesinden yeniden teklif verebilirsiniz.'
+        'Teklifiniz kaldırıldı. "İş fırsatları" sekmesinden yeniden teklif verebilirsiniz.'
       );
       fetchData();
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Teklif geri çekilemedi. Lütfen tekrar deneyin.');
+      setErrorMsg(err?.message || 'Teklif kaldırılamadı. Lütfen tekrar deneyin.');
     } finally {
       setWithdrawingBidId(null);
     }
@@ -418,6 +438,44 @@ export default function ArtisanDashboardPage() {
     }
   };
 
+  const handleCancelJob = async (bid: ArtisanBid) => {
+    if (completingJob) return;
+    const confirmed = window.confirm('Devam eden işi iptal etmek istiyor musunuz? Bu işlem geri alınamaz.');
+    if (!confirmed) return;
+
+    setCompletingJob(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const res = await fetch(apiUrl(`/api/v1/requests/${bid.request_id}/status`), {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status: 'cancelled' }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error?.message || 'İş iptal edilemedi.');
+
+      setMyBids((previous) =>
+        previous.map((item) =>
+          item.request_id === bid.request_id
+            ? { ...item, request_status: 'cancelled' }
+            : item
+        )
+      );
+      setSelectedBid((previous) =>
+        previous && previous.request_id === bid.request_id
+          ? { ...previous, request_status: 'cancelled' }
+          : previous
+      );
+      setSuccessMsg('İş iptal edildi.');
+      fetchData();
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'İş iptal edilemedi. Lütfen tekrar deneyin.');
+    } finally {
+      setCompletingJob(false);
+    }
+  };
+
   const selectedRequestPoint =
     selectedBid &&
     typeof selectedBid.request_latitude === 'number' &&
@@ -447,7 +505,7 @@ export default function ArtisanDashboardPage() {
     ? myBids.find((bid) => bid.request_id === selectedOpportunity.id)
     : null;
 
-  const mapOpportunityPoints = useMemo<DiscoveryPoint[]>(() => opportunities.flatMap((opportunity) => {
+  const mapOpportunityPoints = useMemo<DiscoveryPoint[]>(() => filteredOpportunities.flatMap((opportunity) => {
     if (
       typeof opportunity.latitude !== 'number' ||
       !Number.isFinite(opportunity.latitude) ||
@@ -463,8 +521,8 @@ export default function ArtisanDashboardPage() {
       subtitle: categoryLabels[opportunity.category] || opportunity.category,
       selected: selectedMapOpportunityId === opportunity.id,
     }];
-  }), [opportunities, selectedMapOpportunityId]);
-  const selectedMapOpportunity = opportunities.find((item) => item.id === selectedMapOpportunityId) || null;
+  }), [filteredOpportunities, selectedMapOpportunityId]);
+  const selectedMapOpportunity = filteredOpportunities.find((item) => item.id === selectedMapOpportunityId) || null;
   const selectedMapBid = selectedMapOpportunity
     ? myBids.find((bid) => bid.request_id === selectedMapOpportunity.id)
     : null;
@@ -480,9 +538,11 @@ export default function ArtisanDashboardPage() {
       const list = document.querySelector('.rota-artisan-panel .rota-list');
       const card = document.getElementById(`rota-job-${selectedMapOpportunityId}`);
       if (!(list instanceof HTMLElement) || !(card instanceof HTMLElement)) return;
-      const scrollContainer = window.matchMedia('(max-width: 640px)').matches
-        ? list.closest<HTMLElement>('.rota-artisan-panel')
-        : list;
+      if (window.matchMedia('(max-width: 700px)').matches) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
+      const scrollContainer = list;
       if (!scrollContainer) return;
       const listBounds = scrollContainer.getBoundingClientRect();
       const cardBounds = card.getBoundingClientRect();
@@ -544,22 +604,32 @@ export default function ArtisanDashboardPage() {
             </button>
             <button type="button" className="rota-search-button" onClick={() => void fetchData()} disabled={loading}>{loading ? 'Yükleniyor…' : 'İşleri yenile'} <span>↻</span></button>
           </div>
+          <label className="rota-artisan-job-search">
+            <span aria-hidden="true">⌕</span>
+            <input
+              type="search"
+              value={opportunityQuery}
+              onChange={(event) => setOpportunityQuery(event.target.value)}
+              placeholder="İş, hizmet veya konum ara"
+              aria-label="İş fırsatlarında ara"
+            />
+          </label>
 
           {(errorMsg || successMsg) && <div className={`rota-panel-message${errorMsg ? ' rota-panel-message-error' : ''}`} role={errorMsg ? 'alert' : 'status'}>{errorMsg || successMsg}</div>}
 
           <div className="rota-results-head">
-            <div><strong>{loading ? '…' : opportunities.length}</strong><span> uygun iş</span></div>
+            <div><strong>{loading ? '…' : filteredOpportunities.length}</strong><span> uygun iş</span></div>
             <Link href="/artisan-dashboard/profile" className="rota-sort">Hizmet alanım ↗</Link>
           </div>
           <div className="rota-list" aria-label="Yakınınızdaki iş fırsatları">
-            {loading ? <div className="rota-empty">Yakınınızdaki işler yükleniyor…</div> : opportunities.length === 0 ? (
+            {loading ? <div className="rota-empty">Yakınınızdaki işler yükleniyor…</div> : filteredOpportunities.length === 0 ? (
               <div className="rota-empty">
                 <span className="rota-empty-icon">⌖</span>
-                <strong>{!artisanProfile ? 'Usta profiliniz yüklenemedi' : artisanProfile.is_approved === false ? 'Profiliniz onay bekliyor' : !artisanCenter ? 'Hizmet konumunuz eksik' : 'Yakınınızda eşleşen iş yok'}</strong>
-                <span>{!artisanCenter ? 'Haritada uygun işleri görebilmek için profilinize hizmet konumu ekleyin.' : 'Uzmanlığınıza ve hizmet alanınıza uygun yeni işler burada görünecek.'}</span>
+                <strong>{opportunityQuery.trim() ? 'Aramanızla eşleşen iş bulunamadı' : !artisanProfile ? 'Usta profiliniz yüklenemedi' : artisanProfile.is_approved === false ? 'Profiliniz onay bekliyor' : !artisanCenter ? 'Hizmet konumunuz eksik' : 'Yakınınızda eşleşen iş yok'}</strong>
+                <span>{opportunityQuery.trim() ? 'Farklı bir iş, hizmet veya konum aramayı deneyin.' : !artisanCenter ? 'Uygun işleri görebilmek için profilinize hizmet konumu ekleyin.' : 'Uzmanlığınıza ve hizmet alanınıza uygun yeni işler burada görünecek.'}</span>
                 {!artisanCenter && <Link href="/artisan-dashboard/profile" className="rota-profile-link">Hizmet konumunu ekle ↗</Link>}
               </div>
-            ) : opportunities.map((opportunity) => {
+            ) : filteredOpportunities.map((opportunity) => {
               const bid = myBids.find((item) => item.request_id === opportunity.id);
               const distance = artisanCenter && typeof opportunity.latitude === 'number' && typeof opportunity.longitude === 'number'
                 ? `${Math.max(1, Math.round(haversineDistanceKm(artisanCenter, { latitude: opportunity.latitude, longitude: opportunity.longitude })))} km`
@@ -589,7 +659,7 @@ export default function ArtisanDashboardPage() {
                   {opportunity.customer_phone && (
                     <a
                       className="rota-customer-phone"
-                      href={`tel:${opportunity.customer_phone}`}
+                      href={`tel:${opportunity.customer_phone.replace(/\s/g, '')}`}
                       onClick={(event) => event.stopPropagation()}
                     >
                       ☎ {opportunity.customer_phone}
@@ -703,7 +773,7 @@ export default function ArtisanDashboardPage() {
                 <div className="alert alert-success" style={{ marginTop: '0.75rem' }}>
                   Müşteri iletişim numarası:{' '}
                   <a
-                    href={`tel:${bid.customer_phone}`}
+                    href={`tel:${bid.customer_phone.replace(/\s/g, '')}`}
                     style={{ fontWeight: 700, color: 'var(--success)' }}
                     onClick={(event) => event.stopPropagation()}
                     onKeyDown={(event) => event.stopPropagation()}
@@ -751,7 +821,7 @@ export default function ArtisanDashboardPage() {
                     className="btn btn-ghost btn-sm"
                     style={{ marginTop: '0.6rem', color: 'var(--danger)' }}
                   >
-                    {withdrawingBidId === bid.id ? 'Geri çekiliyor...' : 'Teklifi çek'}
+                    {withdrawingBidId === bid.id ? 'Kaldırılıyor...' : 'Teklifi kaldır'}
                   </button>
                 )}
 
@@ -1463,7 +1533,7 @@ export default function ArtisanDashboardPage() {
                   <div className="alert alert-success">
                     Müşteri iletişim numarası:{' '}
                     <a
-                      href={`tel:${selectedBid.customer_phone}`}
+                      href={`tel:${selectedBid.customer_phone.replace(/\s/g, '')}`}
                       style={{ fontWeight: 700, color: 'var(--success)' }}
                     >
                       {selectedBid.customer_phone}
@@ -1515,6 +1585,10 @@ export default function ArtisanDashboardPage() {
                 </div>
               </div>
 
+              {selectedBid.is_accepted && (
+                <RequestChat requestId={selectedBid.request_id} />
+              )}
+
               <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
                 {!selectedBid.is_accepted &&
                   selectedBid.status === 'pending' &&
@@ -1524,21 +1598,31 @@ export default function ArtisanDashboardPage() {
                       onClick={() => handleWithdrawBid(selectedBid)}
                       disabled={withdrawingBidId === selectedBid.id}
                       className="btn btn-danger"
-                      title="Teklifinizi geri çekin"
+                      title="Teklifinizi kaldırın"
                     >
-                      {withdrawingBidId === selectedBid.id ? 'Geri çekiliyor...' : 'Teklifi çek'}
+                      {withdrawingBidId === selectedBid.id ? 'Kaldırılıyor...' : 'Teklifi kaldır'}
                     </button>
                   )}
                 {selectedBid.is_accepted && selectedBid.request_status === 'in_progress' && (
-                  <button
-                    type="button"
-                    onClick={() => handleCompleteJob(selectedBid)}
-                    disabled={completingJob}
-                    className="btn btn-success"
-                    title="İşi tamamlandı olarak işaretle"
-                  >
-                    {completingJob ? 'İşaretleniyor...' : 'İşi tamamlandı olarak işaretle'}
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleCompleteJob(selectedBid)}
+                      disabled={completingJob}
+                      className="btn btn-success"
+                      title="İşi tamamlandı olarak işaretle"
+                    >
+                      {completingJob ? 'İşaretleniyor...' : 'İşi tamamlandı olarak işaretle'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleCancelJob(selectedBid)}
+                      disabled={completingJob}
+                      className="btn btn-outline-danger"
+                    >
+                      İşi iptal et
+                    </button>
+                  </>
                 )}
                 {selectedRequestPoint && (
                   <>

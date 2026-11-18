@@ -1,10 +1,15 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:http/http.dart' as http;
+import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/api/api_service.dart';
 import '../../core/models/artisan_model.dart';
 import '../../core/services/location_service.dart';
 import '../../core/storage/token_storage.dart';
 import '../../core/theme/app_theme.dart';
+import '../../widgets/brand_hero_card.dart';
 import '../../widgets/location_picker.dart';
 import 'artisan_detail_screen.dart';
 
@@ -54,6 +59,11 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _locating = false;
   bool _customerLocationRequired = false;
   String? _locationError;
+  LatLng? _deviceRouteOrigin;
+  String? _selectedArtisanId;
+  List<LatLng> _routePoints = [];
+  bool _routeLoading = false;
+  int _routeRequestGeneration = 0;
 
   @override
   void initState() {
@@ -170,6 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _latitude = result.latitude;
         _longitude = result.longitude;
+        _deviceRouteOrigin = LatLng(result.latitude!, result.longitude!);
         _locating = false;
       });
       await _fetchArtisans();
@@ -179,6 +190,222 @@ class _HomeScreenState extends State<HomeScreen> {
         _locating = false;
       });
     }
+  }
+
+  Future<void> _selectArtisan(ArtisanModel artisan) async {
+    final requestGeneration = ++_routeRequestGeneration;
+    final destination = artisan.coordinates;
+    setState(() {
+      _selectedArtisanId = artisan.id;
+      _routePoints = [];
+      _routeLoading = destination != null;
+    });
+    if (destination == null) return;
+
+    var origin = _deviceRouteOrigin;
+    if (origin == null) {
+      final result = await LocationService.getCurrentPosition();
+      if (!mounted) return;
+      if (!result.hasLocation) {
+        setState(() => _routeLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.error ?? 'GPS konumu alınamadı.')),
+        );
+        return;
+      }
+      origin = LatLng(result.latitude!, result.longitude!);
+      setState(() => _deviceRouteOrigin = origin);
+    }
+
+    try {
+      final uri = Uri.https(
+        'router.project-osrm.org',
+        '/route/v1/driving/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}',
+        {'overview': 'full', 'geometries': 'geojson'},
+      );
+      final response = await http.get(uri).timeout(const Duration(seconds: 15));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Rota servisi yanıt vermedi.');
+      }
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final routes = body['routes'];
+      dynamic coordinates;
+      if (routes is List && routes.isNotEmpty && routes.first is Map) {
+        final geometry = (routes.first as Map)['geometry'];
+        if (geometry is Map) coordinates = geometry['coordinates'];
+      }
+      if (coordinates is! List) throw Exception('Rota bulunamadı.');
+
+      final points = coordinates
+          .whereType<List>()
+          .where((point) =>
+              point.length >= 2 && point[0] is num && point[1] is num)
+          .map((point) => LatLng(
+                (point[1] as num).toDouble(),
+                (point[0] as num).toDouble(),
+              ))
+          .toList();
+      if (points.length < 2) throw Exception('Rota geometrisi geçersiz.');
+      if (!mounted || requestGeneration != _routeRequestGeneration) return;
+      setState(() {
+        _routePoints = points;
+        _routeLoading = false;
+      });
+    } catch (error) {
+      if (!mounted || requestGeneration != _routeRequestGeneration) return;
+      setState(() => _routeLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Rota yüklenemedi: $error')),
+      );
+    }
+  }
+
+  Future<void> _openArtisanDirections() async {
+    final origin = _deviceRouteOrigin;
+    ArtisanModel? artisan;
+    for (final item in _artisans) {
+      if (item.id == _selectedArtisanId) {
+        artisan = item;
+        break;
+      }
+    }
+    final destination = artisan?.coordinates;
+    if (origin == null || destination == null) return;
+    final uri = Uri.https('www.google.com', '/maps/dir/', {
+      'api': '1',
+      'origin': '${origin.latitude},${origin.longitude}',
+      'destination': '${destination.latitude},${destination.longitude}',
+      'travelmode': 'driving',
+    });
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+        mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Harita uygulaması açılamadı.')),
+      );
+    }
+  }
+
+  Widget _buildArtisanMap() {
+    final mappedArtisans =
+        _artisans.where((artisan) => artisan.coordinates != null).toList();
+    final mapCenter = _routePoints.isNotEmpty
+        ? _routePoints[_routePoints.length ~/ 2]
+        : _latitude != null && _longitude != null
+            ? LatLng(_latitude!, _longitude!)
+            : mappedArtisans.isNotEmpty
+                ? mappedArtisans.first.coordinates!
+                : const LatLng(39.2, 34.8);
+
+    return Container(
+      height: 280,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Stack(
+        children: [
+          FlutterMap(
+            key: ValueKey('${mapCenter.latitude}:${mapCenter.longitude}'),
+            options: MapOptions(
+              initialCenter: mapCenter,
+              initialZoom:
+                  _latitude != null || mappedArtisans.length == 1 ? 11 : 6,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.ustabul.mobile',
+              ),
+              if (_routePoints.length >= 2)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: _routePoints,
+                      strokeWidth: 5,
+                      color: AppColors.accent,
+                    ),
+                  ],
+                ),
+              MarkerLayer(
+                markers: [
+                  ...mappedArtisans.map(
+                    (artisan) => Marker(
+                      point: artisan.coordinates!,
+                      width: 42,
+                      height: 48,
+                      child: GestureDetector(
+                        onTap: () => _selectArtisan(artisan),
+                        child: Icon(
+                          Icons.location_on,
+                          size: 40,
+                          color: _selectedArtisanId == artisan.id
+                              ? AppColors.warning
+                              : AppColors.accent,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (_deviceRouteOrigin != null)
+                    Marker(
+                      point: _deviceRouteOrigin!,
+                      width: 34,
+                      height: 34,
+                      child: const Icon(
+                        Icons.my_location,
+                        size: 26,
+                        color: Colors.blue,
+                      ),
+                    ),
+                ],
+              ),
+              const RichAttributionWidget(
+                attributions: [
+                  TextSourceAttribution('© OpenStreetMap contributors'),
+                ],
+              ),
+            ],
+          ),
+          if (_routeLoading)
+            const Positioned(
+              top: 10,
+              right: 10,
+              child: Card(
+                child: Padding(
+                  padding: EdgeInsets.all(8),
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              ),
+            ),
+          if (_selectedArtisanId != null && _deviceRouteOrigin != null)
+            Positioned(
+              left: 10,
+              bottom: 10,
+              child: FilledButton.icon(
+                onPressed: _openArtisanDirections,
+                icon: const Icon(Icons.directions),
+                label: const Text('Yol tarifi'),
+              ),
+            ),
+          if (mappedArtisans.isEmpty)
+            const Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: Card(
+                child: Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Text('Haritada gösterilecek konumlu usta bulunamadı.'),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -215,35 +442,11 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Hero Banner
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.accentSoft,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.accentBorder),
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Eviniz İçin Güvenilir Ustalar',
-                      style: TextStyle(
-                          color: AppColors.ink,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800),
-                    ),
-                    SizedBox(height: 6),
-                    Text(
-                      'Tesisat, elektrik, boya ve tüm tadilat işlerinizde doğrulanmış ustalar dakikalar içinde kapınızda.',
-                      style: TextStyle(
-                          color: AppColors.inkSecondary,
-                          fontSize: 13,
-                          height: 1.5),
-                    ),
-                  ],
-                ),
+              const BrandHeroCard(
+                eyebrow: 'USTA BUL · USTALAR YAKININIZDA',
+                title: 'Güvenilir ustayı bulun.',
+                subtitle: 'İşinizi kolayca halledin; doğru uzman size yakın.',
+                icon: Icons.handyman_rounded,
               ),
               const SizedBox(height: 20),
 
@@ -430,6 +633,32 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
               ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Yakınınızdaki ustalar',
+                    style: TextStyle(
+                      color: AppColors.ink,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (_routePoints.isNotEmpty)
+                    TextButton(
+                      onPressed: () => setState(() => _routePoints = []),
+                      child: const Text('Rotayı temizle'),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Harita işaretleri ve usta konumları yaklaşık gösterilir.',
+                style: TextStyle(color: AppColors.inkFaint, fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              _buildArtisanMap(),
               const SizedBox(height: 24),
 
               // Usta Listesi
@@ -622,8 +851,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                         [
                                           if (artisan.locationLabel.isNotEmpty)
                                             artisan.locationLabel,
+                                          if (artisan.locationIsApproximate)
+                                            'Yaklaşık konum',
                                           if (artisan.distanceKm != null)
-                                            '${artisan.distanceKm!.toStringAsFixed(1)} km',
+                                            '~${artisan.distanceKm!.round()} km',
                                           '${artisan.experienceYears} yıl deneyim',
                                         ].join(' • '),
                                         style: const TextStyle(

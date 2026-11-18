@@ -442,7 +442,11 @@ export default function AdminDashboardPage() {
                           <span className="badge badge-neutral">{account.deleted_at ? 'Hesap kapalı' : account.suspended_at ? 'Kısıtlı' : 'Aktif'}</span>
                         </div>
                         <h3 className="list-title">{account.full_name}</h3>
-                        <p className="list-sub">{[account.email, account.phone].filter(Boolean).join(' · ')}</p>
+                        <p className="list-sub">
+                          {account.email}
+                          {account.email && account.phone ? ' · ' : ''}
+                          {account.phone && <a href={`tel:${account.phone.replace(/\s/g, '')}`}>{account.phone}</a>}
+                        </p>
                         <p className="small muted mt-1">Kayıt: {formatDate(account.created_at)}</p>
                       </div>
                       <button type="button" className="btn btn-primary btn-sm" onClick={() => void openUserProfile(account.id)}>Profili ve işlemleri incele</button>
@@ -459,7 +463,13 @@ export default function AdminDashboardPage() {
                     <div>
                       <p className="eyebrow">{selectedProfile.user.role === 'artisan' ? 'Usta profili' : 'Müşteri profili'}</p>
                       <h2 className="section-title">{selectedProfile.user.full_name}</h2>
-                      <p className="list-sub">{[selectedProfile.user.email, selectedProfile.user.phone].filter(Boolean).join(' · ')}</p>
+                      <p className="list-sub">
+                        {selectedProfile.user.email}
+                        {selectedProfile.user.email && selectedProfile.user.phone ? ' · ' : ''}
+                        {selectedProfile.user.phone && (
+                          <a href={`tel:${selectedProfile.user.phone.replace(/\s/g, '')}`}>{selectedProfile.user.phone}</a>
+                        )}
+                      </p>
                       <p className="small muted mt-1">Kullanıcı ID: {selectedProfile.user.id} · Kayıt: {formatDate(selectedProfile.user.created_at)}</p>
                       {selectedProfile.user.role === 'artisan' && (
                         <div className="card mt-2">
@@ -572,7 +582,13 @@ export default function AdminDashboardPage() {
                             <span className="small muted">Başvuru: {formatDate(artisan.created_at)}</span>
                           </div>
                           <h3 className="list-title">{artisan.full_name}</h3>
-                          <p className="list-sub">{[formatCityDistrict(artisan.city, artisan.district), artisan.phone, artisan.email].filter(Boolean).join(' · ')}</p>
+                          <p className="list-sub">
+                            {formatCityDistrict(artisan.city, artisan.district)}
+                            {formatCityDistrict(artisan.city, artisan.district) && artisan.phone ? ' · ' : ''}
+                            {artisan.phone && <a href={`tel:${artisan.phone.replace(/\s/g, '')}`}>{artisan.phone}</a>}
+                            {artisan.phone && artisan.email ? ' · ' : ''}
+                            {artisan.email}
+                          </p>
                           {artisan.bio && <p className="mt-1" style={{ color: 'var(--ink-soft)' }}>{artisan.bio}</p>}
                           <p className="small muted mt-1">Deneyim: {artisan.experience_years} yıl</p>
                           <button type="button" className="btn btn-ghost btn-sm mt-1" onClick={() => void openUserProfile(artisan.id)}>Usta profilini ve işlemlerini incele</button>

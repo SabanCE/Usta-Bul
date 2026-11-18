@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/api/api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../widgets/brand_hero_card.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -60,38 +61,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: const BoxDecoration(
-                          color: AppColors.accentSoft,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.handyman_rounded,
-                          color: AppColors.accent,
-                          size: 40,
-                        ),
-                      ),
+                    const BrandHeroCard(
+                      eyebrow: 'USTA BUL · HOŞ GELDİNİZ',
+                      title: 'İşiniz kolay, ustanız yakın.',
+                      subtitle:
+                          'Hesabınıza giriş yapın; güvenilir hizmete kaldığınız yerden devam edin.',
+                      icon: Icons.handyman_rounded,
                     ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Usta Bul',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: AppColors.ink,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Hesabınıza giriş yapın',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.inkSecondary, fontSize: 14),
-                    ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
 
                     if (_errorMessage != null)
                       Container(
@@ -99,12 +76,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
                           color: AppColors.dangerSoft,
-                          border: Border.all(color: AppColors.danger.withOpacity(0.25)),
-                          borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
+                          border: Border.all(
+                              color: AppColors.danger.withOpacity(0.25)),
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.fieldRadius),
                         ),
                         child: Text(
                           _errorMessage!,
-                          style: const TextStyle(color: AppColors.danger, fontSize: 13),
+                          style: const TextStyle(
+                              color: AppColors.danger, fontSize: 13),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -113,12 +93,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
-                      style: const TextStyle(color: AppColors.ink, fontSize: 15),
+                      style:
+                          const TextStyle(color: AppColors.ink, fontSize: 15),
                       decoration: const InputDecoration(
                         hintText: 'E-posta adresi',
-                        prefixIcon: Icon(Icons.email_outlined, color: AppColors.inkFaint, size: 20),
+                        prefixIcon: Icon(Icons.email_outlined,
+                            color: AppColors.inkFaint, size: 20),
                       ),
-                      validator: (v) => v == null || !v.contains('@') ? 'Geçerli bir e-posta girin' : null,
+                      validator: (v) => v == null || !v.contains('@')
+                          ? 'Geçerli bir e-posta girin'
+                          : null,
                     ),
                     const SizedBox(height: 16),
 
@@ -126,12 +110,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextFormField(
                       controller: _passController,
                       obscureText: true,
-                      style: const TextStyle(color: AppColors.ink, fontSize: 15),
+                      style:
+                          const TextStyle(color: AppColors.ink, fontSize: 15),
                       decoration: const InputDecoration(
                         hintText: 'Şifre',
-                        prefixIcon: Icon(Icons.lock_outline, color: AppColors.inkFaint, size: 20),
+                        prefixIcon: Icon(Icons.lock_outline,
+                            color: AppColors.inkFaint, size: 20),
                       ),
-                      validator: (v) => v == null || v.length < 6 ? 'En az 6 karakter girin' : null,
+                      validator: (v) => v == null || v.length < 6
+                          ? 'En az 6 karakter girin'
+                          : null,
                     ),
                     const SizedBox(height: 24),
 
@@ -144,9 +132,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             ? const SizedBox(
                                 width: 22,
                                 height: 22,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2.5),
                               )
-                            : const Text('Giriş Yap', style: TextStyle(fontSize: 16)),
+                            : const Text('Giriş Yap',
+                                style: TextStyle(fontSize: 16)),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -157,14 +147,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         const Text(
                           'Hesabınız yok mu?',
-                          style: TextStyle(color: AppColors.inkSecondary, fontSize: 14),
+                          style: TextStyle(
+                              color: AppColors.inkSecondary, fontSize: 14),
                         ),
                         TextButton(
                           onPressed: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => RegisterScreen(onRegisterSuccess: widget.onLoginSuccess),
+                                builder: (_) => RegisterScreen(
+                                    onRegisterSuccess: widget.onLoginSuccess),
                               ),
                             );
                           },

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/api/api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../widgets/brand_hero_card.dart';
 import '../../widgets/location_picker.dart';
 
 class NewRequestScreen extends StatefulWidget {
@@ -193,172 +194,192 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-              // Kategori Seçimi
-              if (!isPhone || _currentStep == 0) ...[
-              const _SectionLabel('Kategori'),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    isExpanded: true,
-                    dropdownColor: AppColors.surface,
-                    borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
-                    value: _selectedCategory,
-                    style: const TextStyle(color: AppColors.ink, fontSize: 15),
-                    items: _categories.map((c) {
-                      return DropdownMenuItem<String>(
-                        value: c['slug'],
-                        child: Text(c['name']!),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedCategory = val);
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              ],
-
-              // Aciliyet Durumu
-              if (!isPhone || _currentStep == 2) ...[
-              const _SectionLabel('Aciliyet Durumu'),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _buildUrgencyButton('Acil (30 dk)', 'urgent',
-                      AppColors.danger, AppColors.dangerSoft),
-                  const SizedBox(width: 8),
-                  _buildUrgencyButton('Bugün İçinde', 'normal',
-                      AppColors.warning, AppColors.warningSoft),
-                  const SizedBox(width: 8),
-                  _buildUrgencyButton('Esnek', 'flexible', AppColors.accent,
-                      AppColors.accentSoft),
-                ],
-              ),
-              const SizedBox(height: 20),
-              ],
-
-              // Talep Başlığı
-              if (!isPhone || _currentStep == 0) ...[
-              const _SectionLabel('Başlık'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _titleController,
-                style: const TextStyle(color: AppColors.ink, fontSize: 15),
-                decoration:
-                    _inputDecoration('Örn: Banyo bataryasından su sızıyor'),
-                validator: (val) => val == null || val.trim().isEmpty
-                    ? 'Lütfen bir başlık girin'
-                    : null,
-              ),
-              const SizedBox(height: 20),
-              ],
-
-              // Detaylı Açıklama
-              if (!isPhone || _currentStep == 1) ...[
-              const _SectionLabel('Detaylı Açıklama'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _descController,
-                maxLines: 4,
-                style: const TextStyle(color: AppColors.ink, fontSize: 15),
-                decoration: _inputDecoration(
-                    'Sorunu detaylandırın, parça değişimi gerekebilir mi vb.'),
-              ),
-              const SizedBox(height: 20),
-              ],
-
-              // Konum & Yarıçap
-              if (!isPhone || _currentStep == 2) ...[
-              AppLocationPicker(
-                latitude: _latitude,
-                longitude: _longitude,
-                radiusKm: _radiusKm,
-                onLocationChanged: (lat, lng) {
-                  setState(() {
-                    _latitude = lat;
-                    _longitude = lng;
-                    _locationRequired = false;
-                  });
-                },
-                onRadiusChanged: (radius) => setState(() => _radiusKm = radius),
-                showRadius: !isPhone,
-                label: 'Hizmet konumu',
-                radiusLabel: 'Ustaları ne kadar uzakta aramak istersiniz?',
-                helperText:
-                    'Konum izni vererek çevrenizdeki ustaların eşleşmesini sağlayın.',
-              ),
-              if (_locationRequired) ...[
-                const SizedBox(height: 8),
-                const Text('Devam etmek için konumunuzu bulun.',
-                    style: TextStyle(color: AppColors.danger, fontSize: 13)),
-              ],
-              if (isPhone)
-                ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  title: const Text('Diğer seçenekler'),
-                  children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Wrap(
-                        spacing: 8,
-                        children: kRadiusOptions.map((radius) {
-                          return ChoiceChip(
-                            label: Text('$radius km'),
-                            selected: _radiusKm == radius,
-                            onSelected: (_) =>
-                                setState(() => _radiusKm = radius),
-                          );
-                        }).toList(),
-                      ),
+                    const BrandHeroCard(
+                      eyebrow: 'USTA BUL · ÜCRETSİZ TALEP',
+                      title: 'İşinizi anlatın, teklifleri alın.',
+                      subtitle:
+                          'Talebinizi yakınınızdaki uygun ustalara iletelim.',
+                      icon: Icons.assignment_add,
                     ),
-                  ],
-                ),
-              const SizedBox(height: 20),
-
-              // Adres
-              const _SectionLabel('Açık Adres'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _addressController,
-                style: const TextStyle(color: AppColors.ink, fontSize: 15),
-                decoration:
-                    _inputDecoration('Mahalle, cadde, sokak ve bina no'),
-                validator: (val) => val == null || val.trim().isEmpty
-                    ? 'Lütfen açık adres girin'
-                    : null,
-              ),
-              const SizedBox(height: 20),
-              ],
-
-              // Gönder Butonu
-              if (!isPhone) SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitRequest,
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2.5),
-                        )
-                      : Text(
-                          widget.targetArtisanId == null
-                              ? 'Talebi Yayınla'
-                              : 'Bu Ustaya Gönder',
-                          style: const TextStyle(fontSize: 16),
+                    const SizedBox(height: 20),
+                    // Kategori Seçimi
+                    if (!isPhone || _currentStep == 0) ...[
+                      const _SectionLabel('Kategori'),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.fieldRadius),
+                          border: Border.all(color: AppColors.border),
                         ),
-                ),
-              ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            dropdownColor: AppColors.surface,
+                            borderRadius:
+                                BorderRadius.circular(AppTheme.fieldRadius),
+                            value: _selectedCategory,
+                            style: const TextStyle(
+                                color: AppColors.ink, fontSize: 15),
+                            items: _categories.map((c) {
+                              return DropdownMenuItem<String>(
+                                value: c['slug'],
+                                child: Text(c['name']!),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _selectedCategory = val);
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
+                    // Aciliyet Durumu
+                    if (!isPhone || _currentStep == 2) ...[
+                      const _SectionLabel('Aciliyet Durumu'),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          _buildUrgencyButton('Acil (30 dk)', 'urgent',
+                              AppColors.danger, AppColors.dangerSoft),
+                          const SizedBox(width: 8),
+                          _buildUrgencyButton('Bugün İçinde', 'normal',
+                              AppColors.warning, AppColors.warningSoft),
+                          const SizedBox(width: 8),
+                          _buildUrgencyButton('Esnek', 'flexible',
+                              AppColors.accent, AppColors.accentSoft),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
+                    // Talep Başlığı
+                    if (!isPhone || _currentStep == 0) ...[
+                      const _SectionLabel('Başlık'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _titleController,
+                        style:
+                            const TextStyle(color: AppColors.ink, fontSize: 15),
+                        decoration: _inputDecoration(
+                            'Örn: Banyo bataryasından su sızıyor'),
+                        validator: (val) => val == null || val.trim().isEmpty
+                            ? 'Lütfen bir başlık girin'
+                            : null,
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
+                    // Detaylı Açıklama
+                    if (!isPhone || _currentStep == 1) ...[
+                      const _SectionLabel('Detaylı Açıklama'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _descController,
+                        maxLines: 4,
+                        style:
+                            const TextStyle(color: AppColors.ink, fontSize: 15),
+                        decoration: _inputDecoration(
+                            'Sorunu detaylandırın, parça değişimi gerekebilir mi vb.'),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
+                    // Konum & Yarıçap
+                    if (!isPhone || _currentStep == 2) ...[
+                      AppLocationPicker(
+                        latitude: _latitude,
+                        longitude: _longitude,
+                        radiusKm: _radiusKm,
+                        onLocationChanged: (lat, lng) {
+                          setState(() {
+                            _latitude = lat;
+                            _longitude = lng;
+                            _locationRequired = false;
+                          });
+                        },
+                        onRadiusChanged: (radius) =>
+                            setState(() => _radiusKm = radius),
+                        showRadius: !isPhone,
+                        label: 'Hizmet konumu',
+                        radiusLabel:
+                            'Ustaları ne kadar uzakta aramak istersiniz?',
+                        helperText:
+                            'Konum izni vererek çevrenizdeki ustaların eşleşmesini sağlayın.',
+                      ),
+                      if (_locationRequired) ...[
+                        const SizedBox(height: 8),
+                        const Text('Devam etmek için konumunuzu bulun.',
+                            style: TextStyle(
+                                color: AppColors.danger, fontSize: 13)),
+                      ],
+                      if (isPhone)
+                        ExpansionTile(
+                          tilePadding: EdgeInsets.zero,
+                          title: const Text('Diğer seçenekler'),
+                          children: [
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Wrap(
+                                spacing: 8,
+                                children: kRadiusOptions.map((radius) {
+                                  return ChoiceChip(
+                                    label: Text('$radius km'),
+                                    selected: _radiusKm == radius,
+                                    onSelected: (_) =>
+                                        setState(() => _radiusKm = radius),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      const SizedBox(height: 20),
+
+                      // Adres
+                      const _SectionLabel('Açık Adres'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _addressController,
+                        style:
+                            const TextStyle(color: AppColors.ink, fontSize: 15),
+                        decoration: _inputDecoration(
+                            'Mahalle, cadde, sokak ve bina no'),
+                        validator: (val) => val == null || val.trim().isEmpty
+                            ? 'Lütfen açık adres girin'
+                            : null,
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
+                    // Gönder Butonu
+                    if (!isPhone)
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _isSubmitting ? null : _submitRequest,
+                          child: _isSubmitting
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 2.5),
+                                )
+                              : Text(
+                                  widget.targetArtisanId == null
+                                      ? 'Talebi Yayınla'
+                                      : 'Bu Ustaya Gönder',
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                        ),
+                      ),
                   ],
                 ),
               ),

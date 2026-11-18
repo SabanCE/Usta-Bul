@@ -228,10 +228,14 @@ export default function ArtisanProfilePage({ params }: { params: { id: string } 
                 <Link href="/login" className="btn btn-secondary btn-block">
                   Telefon için müşteri girişi yapın
                 </Link>
+              ) : showPhone && artisan.phone && user?.role === 'customer' ? (
+                <a href={`tel:${artisan.phone.replace(/\s/g, '')}`} className="btn btn-secondary btn-block">
+                  {artisan.phone}
+                </a>
               ) : (
                 <button
                   type="button"
-                  onClick={() => setShowPhone(!showPhone)}
+                  onClick={() => setShowPhone(true)}
                   className="btn btn-secondary btn-block"
                   disabled={!artisan.phone || user?.role !== 'customer'}
                 >
@@ -239,9 +243,7 @@ export default function ArtisanProfilePage({ params }: { params: { id: string } 
                     ? 'Telefon müşterilere açık'
                     : !artisan.phone
                       ? 'Telefon bilgisi yok'
-                      : showPhone
-                        ? artisan.phone
-                        : 'Telefonu göster'}
+                      : 'Telefonu göster'}
                 </button>
               )}
 

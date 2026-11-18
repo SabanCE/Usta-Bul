@@ -1,6 +1,10 @@
 import pool, { query } from '../config/db';
 import { ensureSchema } from '../config/schema';
 import { BadRequestError, NotFoundError } from '../errors/AppError';
+import {
+  approximateCoordinates,
+  distanceToApproximateCoordinatesKm,
+} from '../utils/locationPrivacy';
 import { assertSubmissionAllowed, getModerationStatus } from './trustSafety.service';
 
 export interface SearchArtisanFilter {
@@ -168,14 +172,35 @@ export class ArtisanService {
       }
 
       const result = await query(sql, params);
-      return result.rows;
+      return result.rows.map((artisan: any) => {
+        const location = approximateCoordinates(artisan.latitude, artisan.longitude);
+        return {
+          ...artisan,
+          latitude: location?.latitude ?? null,
+          longitude: location?.longitude ?? null,
+          location_is_approximate: location !== null,
+          ...(hasLocation
+            ? {
+                distance_km: distanceToApproximateCoordinatesKm(
+                  filter.lat,
+                  filter.lng,
+                  location
+                ),
+              }
+            : {}),
+        };
+      });
     } catch (err: any) {
       console.error('[ArtisanService] Usta listesi alınamadı:', err.message);
       throw err;
     }
   }
 
-  async getArtisanDetail(userId: string, includeContact = false) {
+  async getArtisanDetail(
+    userId: string,
+    includeContact = false,
+    includePreciseLocation = false
+  ) {
     try {
       await ensureSchema();
       await ensureSchema();
@@ -242,8 +267,14 @@ export class ArtisanService {
         console.warn('[ArtisanService] Değerlendirmeler okunamadı:', error.message);
       }
 
+      const location = includePreciseLocation
+        ? { latitude: artisan.latitude, longitude: artisan.longitude }
+        : approximateCoordinates(artisan.latitude, artisan.longitude);
       return {
         ...artisan,
+        latitude: location?.latitude ?? null,
+        longitude: location?.longitude ?? null,
+        location_is_approximate: !includePreciseLocation && location !== null,
         services,
         portfolio,
         reviews,

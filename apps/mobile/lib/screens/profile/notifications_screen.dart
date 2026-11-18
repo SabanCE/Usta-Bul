@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/api/api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../widgets/brand_hero_card.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -142,13 +143,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               child: ListView.separated(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
-                itemCount: (_errorMessage == null ? 0 : 1) +
+                itemCount: 1 +
+                    (_errorMessage == null ? 0 : 1) +
                     (_notifications.isEmpty
                         ? (_errorMessage == null ? 1 : 0)
                         : _notifications.length),
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
-                  if (_errorMessage != null && index == 0) {
+                  if (index == 0) {
+                    return const BrandHeroCard(
+                      eyebrow: 'USTA BUL · HABERİNİZ OLSUN',
+                      title: 'Gelişmelerden haberdar kalın.',
+                      subtitle:
+                          'Teklif ve işlerinizle ilgili güncellemeler burada.',
+                      icon: Icons.notifications_active_rounded,
+                    );
+                  }
+                  final contentIndex = index - 1;
+                  if (_errorMessage != null && contentIndex == 0) {
                     return Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -173,7 +185,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     );
                   }
 
-                  final itemIndex = index - (_errorMessage == null ? 0 : 1);
+                  final itemIndex =
+                      contentIndex - (_errorMessage == null ? 0 : 1);
                   final item = _notifications[itemIndex];
                   final isRead = item['isRead'] == true;
                   return Card(

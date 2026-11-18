@@ -19,6 +19,7 @@ interface LocationMapProps {
   origin?: LatLng | null;
   height?: number;
   showDirections?: boolean;
+  showActions?: boolean;
   showDistance?: boolean;
   className?: string;
   radiusKm?: number;
@@ -33,6 +34,7 @@ export default function LocationMap({
   origin = null,
   height = 220,
   showDirections = true,
+  showActions = true,
   showDistance = true,
   className = '',
   radiusKm,
@@ -141,24 +143,26 @@ export default function LocationMap({
           </span>
         )}
 
-        <span className="location-map-links">
-          <a
-            href={googleMapsPlaceUrl(latitude, longitude)}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Haritada aç
-          </a>
-          {showDirections && (
+        {showActions && (
+          <span className="location-map-links">
             <a
-              href={googleMapsDirectionsUrl(destination, origin)}
+              href={googleMapsPlaceUrl(latitude, longitude)}
               target="_blank"
               rel="noreferrer"
             >
-              Yol tarifi al ↗
+              Haritada aç
             </a>
-          )}
-        </span>
+            {showDirections && (
+              <a
+                href={googleMapsDirectionsUrl(destination, origin)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Yol tarifi al ↗
+              </a>
+            )}
+          </span>
+        )}
       </div>
     </div>
   );

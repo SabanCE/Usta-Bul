@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
 import '../constants/api_constants.dart';
 import '../storage/token_storage.dart';
@@ -24,6 +25,27 @@ class ApiService {
   ApiService._internal();
 
   final http.Client _client = http.Client();
+
+  Future<void> warmUp() async {
+    try {
+      final response = await _client
+          .get(Uri.parse(ApiConstants.healthUrl))
+          .timeout(const Duration(seconds: 60));
+      if (response.statusCode < 200 || response.statusCode >= 400) {
+        developer.log(
+          'API warm-up returned HTTP ${response.statusCode}.',
+          name: 'ApiService',
+        );
+      }
+    } catch (error, stackTrace) {
+      developer.log(
+        'API warm-up failed.',
+        name: 'ApiService',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
 
   // Temel Header Oluşturucu (Bearer Token dahil)
   Future<Map<String, String>> _getHeaders({bool requireAuth = true}) async {

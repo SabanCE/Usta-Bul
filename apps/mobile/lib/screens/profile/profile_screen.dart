@@ -2,12 +2,18 @@ import 'package:flutter/material.dart';
 import '../../core/api/api_service.dart';
 import '../../core/storage/token_storage.dart';
 import '../../core/theme/app_theme.dart';
+import '../../widgets/brand_hero_card.dart';
 import 'notifications_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback onLogout;
+  final VoidCallback onSupport;
 
-  const ProfileScreen({super.key, required this.onLogout});
+  const ProfileScreen({
+    super.key,
+    required this.onLogout,
+    required this.onSupport,
+  });
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -75,6 +81,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            const BrandHeroCard(
+              eyebrow: 'USTA BUL · HESABINIZ',
+              title: 'Bilgileriniz, kontrolünüzde.',
+              subtitle: 'Profilinizi ve hesap tercihlerinizi buradan yönetin.',
+              icon: Icons.manage_accounts_rounded,
+            ),
+            const SizedBox(height: 18),
             // Kullanıcı Bilgi Kartı
             Container(
               padding: const EdgeInsets.all(24),
@@ -142,8 +155,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             _buildMenuItem(Icons.security_rounded, 'Güvenlik ve Şifre', () {}),
-            _buildMenuItem(
-                Icons.help_outline_rounded, 'Yardım & Destek', () {}),
+            _buildMenuItem(Icons.help_outline_rounded, 'Yardım & Destek',
+                widget.onSupport),
             const SizedBox(height: 20),
 
             // Çıkış Yap Butonu

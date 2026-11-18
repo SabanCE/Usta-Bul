@@ -233,7 +233,7 @@ export default function ArtisanRequestDetailPage() {
                 {request.customer_phone && (
                   <div>
                     <span className="small muted">Telefon</span>
-                    <a href={`tel:${request.customer_phone}`}>{request.customer_phone}</a>
+                    <a href={`tel:${request.customer_phone.replace(/\s/g, '')}`}>{request.customer_phone}</a>
                   </div>
                 )}
               </div>
